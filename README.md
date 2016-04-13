@@ -3,7 +3,7 @@ This repository is an Android port of [LunarG sample kit](https://github.com/Lun
 
 ## Prerequisites
 - Android Studio 2.0 or later.
-- ANdroid SDK N-preview or later
+- Android SDK N-preview or later
 - NDK r12 beta or later
 
 ## Sample import
