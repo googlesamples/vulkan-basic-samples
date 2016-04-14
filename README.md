@@ -1,4 +1,4 @@
-# Vulkan Samples Kit
+# Vulkan Samples
 This repository is an Android port of [LunarG sample kit](https://github.com/LunarG/VulkanSamples).
 
 ## Prerequisites
