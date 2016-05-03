@@ -35,6 +35,8 @@ cmake -DANDROID=ON -DANDROID_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all(default)]
 ####Step 4: Import the samples in Android Studio by choosing “Import project (Eclipse, ADT, Gradle)” and choose: LunarGSamples/API-Samples/android/build.gradle
 
 Meta data for Android Studio sample import.
+-------------------------------------------
+
 ==================
 Vulkan API samples
 ==================
