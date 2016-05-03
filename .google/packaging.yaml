@@ -1,7 +1,7 @@
 status:       PUBLISHED
 technologies: [Android, NDK, Vulkan]
 categories:   [NDK]
-languages:    [C++, Java]
+languages:    [C++]
 solutions:    [Mobile]
 github:       googlesamples/vulkan-basic-samples
 license:      apache2
