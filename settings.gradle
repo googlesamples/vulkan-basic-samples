@@ -1,0 +1,74 @@
+// Copyright 2016 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// configure path to the source code generated on your machine
+Properties properties = new Properties()
+properties.load(file('local.properties').newDataInputStream())
+def ndkDir = properties.getProperty('ndk.dir')
+def layerProjRoot = file(ndkDir).absolutePath + '/sources/third_party/vulkan/src/build-android/generated/gradle-build'
+String[] layers = ['threading',
+                   'parameter_validation',
+                   'object_tracker',
+                   'core_validation',
+                   'device_limits',
+                   'image',
+                   'swapchain',
+                   'unique_objects']
+for (layer in layers) {
+    include ":"+ layer
+    project(":" + layer.toString()).projectDir =
+        new File("${layerProjRoot}/${layer}")
+}
+
+include ':nativeactivity' ,
+'LunarGSamples/API-Samples/android/:instance' ,
+'LunarGSamples/API-Samples/android/:device' ,
+'LunarGSamples/API-Samples/android/:enumerate' ,
+'LunarGSamples/API-Samples/android/:enumerate-adv' ,
+'LunarGSamples/API-Samples/android/:depthbuffer' ,
+'LunarGSamples/API-Samples/android/:initswapchain' ,
+'LunarGSamples/API-Samples/android/:inittexture' ,
+'LunarGSamples/API-Samples/android/:uniformbuffer' ,
+'LunarGSamples/API-Samples/android/:descriptor_pipeline_layouts' ,
+'LunarGSamples/API-Samples/android/:initcommandbuffer' ,
+'LunarGSamples/API-Samples/android/:initrenderpass' ,
+'LunarGSamples/API-Samples/android/:initframebuffers' ,
+'LunarGSamples/API-Samples/android/:vertexbuffer' ,
+'LunarGSamples/API-Samples/android/:allocdescriptorsets' ,
+'LunarGSamples/API-Samples/android/:initshaders' ,
+'LunarGSamples/API-Samples/android/:initpipeline' ,
+'LunarGSamples/API-Samples/android/:multithreadcmdbuf' ,
+'LunarGSamples/API-Samples/android/:drawcube' ,
+'LunarGSamples/API-Samples/android/:drawtexturedcube' ,
+'LunarGSamples/API-Samples/android/:dynamicuniform' ,
+'LunarGSamples/API-Samples/android/:texelbuffer' ,
+'LunarGSamples/API-Samples/android/:instance_layer_properties' ,
+'LunarGSamples/API-Samples/android/:instance_extension_properties' ,
+'LunarGSamples/API-Samples/android/:instance_layer_extension_properties' ,
+'LunarGSamples/API-Samples/android/:dbgcreatemsgcallback' ,
+'LunarGSamples/API-Samples/android/:enable_validation_with_callback' ,
+'LunarGSamples/API-Samples/android/:multiple_sets' ,
+'LunarGSamples/API-Samples/android/:copyblitimage' ,
+'LunarGSamples/API-Samples/android/:template' ,
+'LunarGSamples/API-Samples/android/:separate_image_sampler' ,
+'LunarGSamples/API-Samples/android/:occlusion_query' ,
+'LunarGSamples/API-Samples/android/:pipeline_cache' ,
+'LunarGSamples/API-Samples/android/:pipeline_derivative' ,
+'LunarGSamples/API-Samples/android/:immutable_sampler' ,
+'LunarGSamples/API-Samples/android/:push_constants' ,
+'LunarGSamples/API-Samples/android/:drawsubpasses' ,
+'LunarGSamples/API-Samples/android/:secondarycmd' ,
+'LunarGSamples/API-Samples/android/:spirv_assembly' ,
+'LunarGSamples/API-Samples/android/:spirv_specialization'
+project(':nativeactivity').projectDir = new File(settingsDir, 'LunarGSamples/API-Samples/android/external/nativeactivity')

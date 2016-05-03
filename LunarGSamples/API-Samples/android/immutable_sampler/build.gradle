@@ -20,9 +20,9 @@ Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 def ndkDir = properties.getProperty('ndk.dir')
 def shadercLibPath = file(ndkDir).absolutePath + "/sources/third_party/shaderc"
-def vulkanWrapperPath = file(project.rootProject.projectDir).absolutePath + "/vulkan_wrapper"
+def vulkanWrapperPath = "../vulkan_wrapper"
 
-def stlType = "c++_shared"
+def stlType = "gnustl_static"
 
 def ndkbuild = "ndk-build"
 if (Os.isFamily(Os.FAMILY_WINDOWS)) {
