@@ -80,7 +80,7 @@ function(sampleWithSingleFile)
             set (ASSET_DIR "")
             set (EXTRA_PERMISSIONS "")
             set (SHADERC_LINKAGE "")
-            set (VALIDATIONLAYER_LINKAGE "")
+            set (VALIDATIONLAYER_PACKING "")
 
             # Add extra setting for some samples.
             # shaderc usage.
@@ -104,14 +104,7 @@ function(sampleWithSingleFile)
             # Add validation layer settings.
             set (SAMPLE_WITH_TOOLS dbgcreatemsgcallback enable_validation_with_callback)
             if (";${SAMPLE_WITH_TOOLS};" MATCHES ";${SAMPLE_NAME};")
-                set (VALIDATIONLAYER_LINKAGE "project \":threading\"
-                    project \":parameter_validation\"
-                    project \":object_tracker\"
-                    project \":core_validation\"
-                    project \":device_limits\"
-                    project \":image\"
-                    project \":swapchain\"
-                    project \":unique_objects\"")
+                set (VALIDATIONLAYER_PACKING "srcDir file(ndkDir).absolutePath + '/sources/third_party/vulkan/src/build-android/jniLibs'")
             endif()
 
             # Cook template files.

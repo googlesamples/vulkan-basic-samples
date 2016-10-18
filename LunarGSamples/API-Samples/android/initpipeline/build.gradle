@@ -19,12 +19,12 @@ apply plugin: 'com.android.model.application'
 Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 def ndkDir = properties.getProperty('ndk.dir')
-def shadercLibPath = file(ndkDir).absolutePath + "/sources/third_party/shaderc"
-def vulkanWrapperPath = "../vulkan_wrapper"
+def shadercLibPath = file(ndkDir).absolutePath + '/sources/third_party/shaderc'
+def vulkanWrapperPath = '../vulkan_wrapper'
 
-def stlType = "gnustl_static"
+def stlType = 'gnustl_static'
 
-def ndkbuild = "ndk-build"
+def ndkbuild = 'ndk-build'
 if (Os.isFamily(Os.FAMILY_WINDOWS)) {
     ndkbuild = "ndk-build.cmd"
 }
@@ -42,39 +42,33 @@ model {
     }
 
     android {
-        compileSdkVersion = "24"
-        buildToolsVersion = "23.0.2"
+        compileSdkVersion = 24
+        buildToolsVersion = '23.0.2'
 
         defaultConfig.with {
             applicationId = "org.khronos.vulkan.samples.initpipeline"
             minSdkVersion.apiLevel = 22
             targetSdkVersion.apiLevel = 24
             versionCode = 1
-            versionName = "0.0.1"
+            versionName = '0.0.1'
         }
-
-        compileOptions.with {
-            sourceCompatibility=JavaVersion.VERSION_1_7
-            targetCompatibility=JavaVersion.VERSION_1_7
+        ndk {
+            moduleName = 'vulkan_samples'
+            cppFlags.add('-Werror')
+            cppFlags.add('-std=c++11')
+            toolchain = 'clang'
+            stl = stlType
+            ldLibs.addAll(['log', 'android'])
+            cppFlags.addAll(['-I' + file("${ndkDir}/sources/android/native_app_glue"),
+                             '-I' + file('../../data'),
+                             '-I' + file('../../utils'),
+                             '-I' + file('../../utils/glm'),
+                             '-I' + file(vulkanWrapperPath),
+                             '-I' + file("${shadercLibPath}/third_party/spirv-tools/include"),
+                             '-I' + file("${shadercLibPath}/third_party/spirv-tools/include/spirv-tools")])
+            cppFlags.add('-D VK_USE_PLATFORM_ANDROID_KHR')
+            
         }
-    }
-
-    android.ndk {
-        moduleName = "vulkan_samples"
-        cppFlags.add("-Werror")
-        cppFlags.add("-std=c++11")
-        toolchain = "clang"
-        stl = stlType
-        ldLibs.addAll(["log", "android"])
-        cppFlags.add("-I${file("${ndkDir}/sources/android/native_app_glue")}".toString())
-        cppFlags.add("-I${file("../../data")}".toString())
-        cppFlags.add("-I${file("../../utils")}".toString())
-        cppFlags.add("-I${file("../../utils/glm")}".toString())
-        cppFlags.add("-I${file(vulkanWrapperPath)}".toString())
-        cppFlags.add("-I${file("${shadercLibPath}/third_party/spirv-tools/include")}".toString())
-        cppFlags.add("-I${file("${shadercLibPath}/third_party/spirv-tools/include/spirv-tools")}".toString())
-        cppFlags.add("-D VK_USE_PLATFORM_ANDROID_KHR")
-        
     }
 
     android.sources {
@@ -93,9 +87,9 @@ model {
                 }
             }
             jniLibs {
-                dependencies {
-                    
-                }
+               source {
+                   
+               }
             }
             assets {
                 source {
