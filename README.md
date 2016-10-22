@@ -2,9 +2,9 @@
 This repository is an Android port of [LunarG sample kit](https://github.com/LunarG/VulkanSamples).
 
 ## Prerequisites
-- Android Studio 2.0 or later.
-- Android SDK N-preview or later
-- NDK r12 beta or later
+- Android Studio 2.2.2 or later.
+- Android SDK N  or later
+- NDK r12 or later
 
 ## Sample import
 To import the samples, follow steps below:
@@ -33,6 +33,7 @@ cmake -DANDROID=ON -DANDROID_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all(default)]
 ~~~
 
 ####Step 4: Import the samples in Android Studio by choosing “Import project (Eclipse, ADT, Gradle)” and choose: LunarGSamples/API-Samples/android/build.gradle
+Note: Android Studio takes couple of minutes to load due to mult-projects settings
 
 Meta data for Android Studio sample import.
 -------------------------------------------

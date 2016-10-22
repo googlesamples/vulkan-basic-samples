@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
 
 import org.apache.tools.ant.taskdefs.condition.Os
 
-apply plugin: 'com.android.model.application'
+apply plugin: 'com.android.application'
 
 Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 def ndkDir = properties.getProperty('ndk.dir')
 def shadercLibPath = file(ndkDir).absolutePath + '/sources/third_party/shaderc'
-def vulkanWrapperPath = '../vulkan_wrapper'
 
 def stlType = 'gnustl_static'
 
@@ -29,97 +28,42 @@ if (Os.isFamily(Os.FAMILY_WINDOWS)) {
     ndkbuild = "ndk-build.cmd"
 }
 
-model {
-    repositories {
-        libs(PrebuiltLibraries) {
-            shaderc {
-                headers.srcDir "${shadercLibPath}/include"
-                binaries.withType(StaticLibraryBinary) {
-                    staticLibraryFile = file("${shadercLibPath}/libs/${stlType}/${targetPlatform.getName()}/libshaderc.a")
-                }
-            }
-        }
-    }
+android {
+    compileSdkVersion  24
+    buildToolsVersion '23.0.2'
 
-    android {
-        compileSdkVersion = 24
-        buildToolsVersion = '23.0.2'
-
-        defaultConfig.with {
-            applicationId = "org.khronos.vulkan.samples.vertexbuffer"
-            minSdkVersion.apiLevel = 22
-            targetSdkVersion.apiLevel = 24
-            versionCode = 1
-            versionName = '0.0.1'
-        }
+    defaultConfig {
+        applicationId 'com.google.vulkan.samples.vertexbuffer'
+        minSdkVersion    22
+        targetSdkVersion 24
+        versionCode  1
+        versionName '0.0.1'
         ndk {
-            moduleName = 'vulkan_samples'
-            cppFlags.add('-Werror')
-            cppFlags.add('-std=c++11')
-            toolchain = 'clang'
-            stl = stlType
-            ldLibs.addAll(['log', 'android'])
-            cppFlags.addAll(['-I' + file("${ndkDir}/sources/android/native_app_glue"),
-                             '-I' + file('../../data'),
-                             '-I' + file('../../utils'),
-                             '-I' + file('../../utils/glm'),
-                             '-I' + file(vulkanWrapperPath),
-                             '-I' + file("${shadercLibPath}/third_party/spirv-tools/include"),
-                             '-I' + file("${shadercLibPath}/third_party/spirv-tools/include/spirv-tools")])
-            cppFlags.add('-D VK_USE_PLATFORM_ANDROID_KHR')
-            
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
-    }
-
-    android.sources {
-        main {
-            jni {
-                dependencies {
-                    project ":nativeactivity" linkage "static"
-                    library "shaderc"         linkage "static"
-                 }
-                source {
-                    srcDir 'src/main/jni'
-                    srcDir '../../vertexbuffer'
-                    srcDir '../../ext/'
-                    srcDir '../../utils'
-                    srcDir vulkanWrapperPath
-                }
-            }
-            jniLibs {
-               source {
-                   
-               }
-            }
-            assets {
-                source {
-                    
-                }
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_PLATFORM=android-24', '-DANDROID_TOOLCHAIN=clang',
+                          "-DANDROID_STL=${stlType}", '-DSAMPLE_NAME=' + project.getName(),
+                          '-DAPI_SAMPLES_SOURCE_DIR=' + getRootDir() + '/LunarGSamples/API-Samples'
             }
         }
     }
-
-    android.buildTypes {
+    externalNativeBuild {
+        cmake {
+            path 'CMakeLists.txt'
+        }
+    }
+    
+    buildTypes {
         release {
-            ndk.with {
-                debuggable = true
-            }
-            minifyEnabled = false
-            proguardFiles.add(file('proguard-rules.pro'))
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'),
+                    'proguard-rules.pro'
         }
     }
-
-    android.productFlavors {
-        // for detailed abiFilter descriptions, refer to "Supported ABIs" @
-        // https://developer.android.com/ndk/guides/abis.html#sa
-        create("all") {
-            
-            ndk.abiFilters.add("armeabi-v7a")
-            ndk.abiFilters.add("arm64-v8a")
-            ndk.abiFilters.add("x86")
-            ndk.abiFilters.add("x86_64")
-        }
-    }
+    
+    
 }
 
 task build_shaderc(type:Exec) {
@@ -135,5 +79,4 @@ tasks.whenTaskAdded { task ->
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile project(':nativeactivity')
 }

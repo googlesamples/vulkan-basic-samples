@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,44 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-include ':nativeactivity' ,
-'LunarGSamples/API-Samples/android/:instance' ,
-'LunarGSamples/API-Samples/android/:device' ,
-'LunarGSamples/API-Samples/android/:enumerate' ,
-'LunarGSamples/API-Samples/android/:enumerate-adv' ,
-'LunarGSamples/API-Samples/android/:depthbuffer' ,
-'LunarGSamples/API-Samples/android/:initswapchain' ,
-'LunarGSamples/API-Samples/android/:inittexture' ,
-'LunarGSamples/API-Samples/android/:uniformbuffer' ,
-'LunarGSamples/API-Samples/android/:descriptor_pipeline_layouts' ,
-'LunarGSamples/API-Samples/android/:initcommandbuffer' ,
-'LunarGSamples/API-Samples/android/:initrenderpass' ,
-'LunarGSamples/API-Samples/android/:initframebuffers' ,
-'LunarGSamples/API-Samples/android/:vertexbuffer' ,
-'LunarGSamples/API-Samples/android/:allocdescriptorsets' ,
-'LunarGSamples/API-Samples/android/:initshaders' ,
-'LunarGSamples/API-Samples/android/:initpipeline' ,
-'LunarGSamples/API-Samples/android/:multithreadcmdbuf' ,
-'LunarGSamples/API-Samples/android/:drawcube' ,
-'LunarGSamples/API-Samples/android/:drawtexturedcube' ,
-'LunarGSamples/API-Samples/android/:dynamicuniform' ,
-'LunarGSamples/API-Samples/android/:texelbuffer' ,
-'LunarGSamples/API-Samples/android/:instance_layer_properties' ,
-'LunarGSamples/API-Samples/android/:instance_extension_properties' ,
-'LunarGSamples/API-Samples/android/:instance_layer_extension_properties' ,
-'LunarGSamples/API-Samples/android/:dbgcreatemsgcallback' ,
-'LunarGSamples/API-Samples/android/:enable_validation_with_callback' ,
-'LunarGSamples/API-Samples/android/:multiple_sets' ,
-'LunarGSamples/API-Samples/android/:copyblitimage' ,
-'LunarGSamples/API-Samples/android/:template' ,
-'LunarGSamples/API-Samples/android/:separate_image_sampler' ,
-'LunarGSamples/API-Samples/android/:occlusion_query' ,
-'LunarGSamples/API-Samples/android/:pipeline_cache' ,
-'LunarGSamples/API-Samples/android/:pipeline_derivative' ,
-'LunarGSamples/API-Samples/android/:immutable_sampler' ,
-'LunarGSamples/API-Samples/android/:push_constants' ,
-'LunarGSamples/API-Samples/android/:drawsubpasses' ,
-'LunarGSamples/API-Samples/android/:secondarycmd' ,
-'LunarGSamples/API-Samples/android/:spirv_assembly' ,
-'LunarGSamples/API-Samples/android/:spirv_specialization'
-project(':nativeactivity').projectDir = new File(settingsDir, 'LunarGSamples/API-Samples/android/external/nativeactivity')
+include 'LunarGSamples/API-Samples/android/:instance'
+include 'LunarGSamples/API-Samples/android/:device'
+include 'LunarGSamples/API-Samples/android/:enumerate'
+include 'LunarGSamples/API-Samples/android/:enumerate-adv'
+include 'LunarGSamples/API-Samples/android/:depthbuffer'
+include 'LunarGSamples/API-Samples/android/:initswapchain'
+include 'LunarGSamples/API-Samples/android/:inittexture'
+include 'LunarGSamples/API-Samples/android/:uniformbuffer'
+include 'LunarGSamples/API-Samples/android/:descriptor_pipeline_layouts'
+include 'LunarGSamples/API-Samples/android/:initcommandbuffer'
+include 'LunarGSamples/API-Samples/android/:initrenderpass'
+include 'LunarGSamples/API-Samples/android/:initframebuffers'
+include 'LunarGSamples/API-Samples/android/:vertexbuffer'
+include 'LunarGSamples/API-Samples/android/:allocdescriptorsets'
+include 'LunarGSamples/API-Samples/android/:initshaders'
+include 'LunarGSamples/API-Samples/android/:initpipeline'
+include 'LunarGSamples/API-Samples/android/:multithreadcmdbuf'
+include 'LunarGSamples/API-Samples/android/:drawcube'
+include 'LunarGSamples/API-Samples/android/:drawtexturedcube'
+include 'LunarGSamples/API-Samples/android/:dynamicuniform'
+include 'LunarGSamples/API-Samples/android/:texelbuffer'
+include 'LunarGSamples/API-Samples/android/:instance_layer_properties'
+include 'LunarGSamples/API-Samples/android/:instance_extension_properties'
+include 'LunarGSamples/API-Samples/android/:instance_layer_extension_properties'
+include 'LunarGSamples/API-Samples/android/:dbgcreatemsgcallback'
+include 'LunarGSamples/API-Samples/android/:enable_validation_with_callback'
+include 'LunarGSamples/API-Samples/android/:multiple_sets'
+include 'LunarGSamples/API-Samples/android/:copyblitimage'
+include 'LunarGSamples/API-Samples/android/:template'
+include 'LunarGSamples/API-Samples/android/:separate_image_sampler'
+include 'LunarGSamples/API-Samples/android/:occlusion_query'
+include 'LunarGSamples/API-Samples/android/:pipeline_cache'
+include 'LunarGSamples/API-Samples/android/:pipeline_derivative'
+include 'LunarGSamples/API-Samples/android/:immutable_sampler'
+include 'LunarGSamples/API-Samples/android/:push_constants'
+include 'LunarGSamples/API-Samples/android/:drawsubpasses'
+include 'LunarGSamples/API-Samples/android/:secondarycmd'
+include 'LunarGSamples/API-Samples/android/:spirv_assembly'
+include 'LunarGSamples/API-Samples/android/:spirv_specialization'
+
+
