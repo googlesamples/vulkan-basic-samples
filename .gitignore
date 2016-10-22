@@ -4,4 +4,5 @@ build
 .DS_Store
 *.iml
 local.properties
+.externalNativeBuild
 

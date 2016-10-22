@@ -71,9 +71,10 @@ function(sampleWithSingleFile)
             MESSAGE("Generating AndroidStudio project:" ${SAMPLE_NAME})
             # Replace "-" to "_", which is invalid in a package name.
             STRING(REPLACE "-" "_" PACKAGE_NAME ${SAMPLE_NAME})
-            set (PACKAGE_NAME org.khronos.vulkan.samples.${PACKAGE_NAME})
             set (SAMPLE_DESCRIPTION "Vulkan sample: ${SAMPLE_NAME}")
-            file(COPY ./android/project_template/ DESTINATION ./android/${SAMPLE_NAME}/)
+            file(COPY ./android/project_template/README.md DESTINATION ./android/${SAMPLE_NAME}/)
+            file(COPY ./android/project_template/build.gradle DESTINATION ./android/${SAMPLE_NAME}/)
+            file(COPY ./android/project_template/src DESTINATION ./android/${SAMPLE_NAME}/)
 
             # Clear flags.
             set (OTHER_FLAGS "")
@@ -92,7 +93,7 @@ function(sampleWithSingleFile)
              pipeline_derivative secondarycmd separate_image_sampler spirv_assembly
              spirv_specialization template)
             if (";${SAMPLE_WITH_RESOURCES};" MATCHES ";${SAMPLE_NAME};")
-                set (ASSET_DIR "srcDir '../../data/'")
+                set (ASSET_DIR "sourceSets.main.assets.srcDirs '../../data'")
             endif()
 
             # Add external storage access permission.
@@ -104,7 +105,7 @@ function(sampleWithSingleFile)
             # Add validation layer settings.
             set (SAMPLE_WITH_TOOLS dbgcreatemsgcallback enable_validation_with_callback)
             if (";${SAMPLE_WITH_TOOLS};" MATCHES ";${SAMPLE_NAME};")
-                set (VALIDATIONLAYER_PACKING "srcDir file(ndkDir).absolutePath + '/sources/third_party/vulkan/src/build-android/jniLibs'")
+                set (VALIDATIONLAYER_PACKING "sourceSets.main.jniLibs.srcDirs file(ndkDir).absolutePath +\n\t\t\t\t'/sources/third_party/vulkan/src/build-android/jniLibs'")
             endif()
 
             # Cook template files.
@@ -117,7 +118,7 @@ function(sampleWithSingleFile)
             foreach(TEMPLATE_FILE ${TEMPLATE_FILES})
                 configure_file(${TEMPLATE_FILE} ${TEMPLATE_FILE} @ONLY)
             endforeach(TEMPLATE_FILE)
-            SET(SETTINGS_GRADLE "${SETTINGS_GRADLE} ,\n':${SAMPLE_NAME}'")
+            SET(SETTINGS_GRADLE "${SETTINGS_GRADLE}include 'LunarGSamples/API-Samples/android/:${SAMPLE_NAME}'\n")
         elseif(UNIX)
             add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
             target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${XCB_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD} ${SPIRV_TOOLS_LIBRARIES})
@@ -129,7 +130,8 @@ function(sampleWithSingleFile)
 
     if(ANDROID)
         #generate Settings.gradle
-        configure_file(android/settings.gradle.in android/settings.gradle @ONLY)
+        configure_file(android/project_template/settings.gradle   ${PROJECT_SOURCE_DIR}/../settings.gradle @ONLY)
+        file(COPY ./android/project_template/CMakeLists.txt DESTINATION ./android/)
     endif()
 endfunction(sampleWithSingleFile)
 
