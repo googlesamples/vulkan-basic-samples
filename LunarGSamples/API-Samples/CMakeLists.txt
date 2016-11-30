@@ -234,7 +234,9 @@ set (S_TARGETS instance device enumerate enumerate-adv
     spirv_assembly spirv_specialization)
 sampleWithSingleFile()
 
-add_subdirectory(utils)
+if(NOT ANDROID)
+    add_subdirectory(utils)
+endif()
 
 # targets that use spv shaders
 
