@@ -1,5 +1,8 @@
 find_package(PythonInterp 3 REQUIRED)
-find_package(Threads REQUIRED)
+
+if(NOT ANDROID)
+    find_package(Threads REQUIRED)
+endif()
 
 macro(generate_dispatch_table out)
     add_custom_command(OUTPUT ${out}
