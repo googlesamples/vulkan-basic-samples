@@ -48,7 +48,7 @@ This process is required to build Hologram sample.
 cmake -DANDROID=ON -DANDROID_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all(default)]
 ~~~
 
-####Step 4: Import the samples in Android Studio by choosing “Import project (Eclipse, ADT, Gradle)” and choose: LunarGSamples/API-Samples/android/build.gradle
+####Step 4: Import the samples in Android Studio by choosing “Import project (Eclipse, ADT, Gradle)” and select build.gradle locating at the root of your repo directory
 Note:  the project include 40+ subjects, takes some time to load, specially for Windows OS
 
 Support
