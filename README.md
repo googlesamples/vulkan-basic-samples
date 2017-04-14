@@ -6,7 +6,7 @@ Demonstrates basic usages of Vulkan APIs.
 Introduction
 ------------
 The project includes series of samples demonstrating a basic usage of Vulkan APIs.
-This repository is an Android port of [LunarG sample kit](https://github.com/LunarG/VulkanSamples).
+This repository is a replication of [LunarG sample kit](https://github.com/LunarG/VulkanSamples), refer to [wiki](https://github.com/googlesamples/vulkan-basic-samples/wiki) for more background.
 
 Getting Started
 ---------------
@@ -18,14 +18,14 @@ Screenshots
 
 
 ## Prerequisites
-- Android Studio 2.2.2 or later.
+- Android Studio 2.3.0 or later.
 - Android SDK N-preview or later
 - NDK r12 beta or later
 
-## Sample import
+## Sample Import
 To import the samples, follow steps below:
 
-####Step 1: (Optional) Build shaderc in NDK. This step is optional for API_samples as Android Studio project automatically execute it.
+### Step 1: Build shaderc in NDK.
 In a command-prompt navigate to “${ndk_root}/sources/third_party/shaderc”
 Run the following command
 
@@ -34,21 +34,12 @@ Run the following command
 ~~~
 
 APP_STL can be one of gnustl_static, gnustl_shared, c++_static, c++_shared.
-Here, it’s going to use statically linked version of libC++ as samples are using it.
+Here, it’s going to use statically linked version of gnustl port as samples are using it.
 
-####Step 2: Sync external project and generate files.
-In a command-prompt navigate to “LunarGSamples", run the following commands
-~~~
-./update_external_sources.sh -s -g
-~~~
-This process is required to build Hologram sample.
+### Step 2: Import the samples into Android Studio with one of the following methods:
+* Import Android Code Sample: choose "Import and Android code sample", search and select "Vulkan API samples". Android Studio will download sample code directly from github.
+* Import project: choose “Import project (Eclipse, ADT, Gradle)” and select `build.gradle` locating at the root of your repo directory
 
-####Step 3: (Optional) Build Android Studio project file. This step is optional as the repository includes a pregenerated project files that includes All ABIs.
-~~~
-cmake -DANDROID=ON -DANDROID_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all(default)]
-~~~
-
-####Step 4: Import the samples in Android Studio by choosing “Import project (Eclipse, ADT, Gradle)” and select build.gradle locating at the root of your repo directory
 Note:  the project include 40+ subjects, takes some time to load, specially for Windows OS
 
 Support
