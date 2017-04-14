@@ -30,7 +30,7 @@ In a command-prompt navigate to “${ndk_root}/sources/third_party/shaderc”
 Run the following command
 
 ~~~
-../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=c++_static APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
+../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=gnustl_static APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
 ~~~
 
 APP_STL can be one of gnustl_static, gnustl_shared, c++_static, c++_shared.
