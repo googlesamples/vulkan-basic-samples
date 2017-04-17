@@ -38,10 +38,10 @@ For this project, the `APP_STL` value is set to use the `gnustl_static` port, as
 ### Step 2: Import the samples into Android Studio 
 You can use one of the following methods to install this project in Android Studio:
 
-* Import Android Code Sample: Choose **Import and Android code sample**, then search for and select **Vulkan API samples**. Android Studio downloads the sample code directly from Github.
+* Import Android Code Sample: Choose **Import an Android code sample**, then search for and select **Vulkan API samples**. Android Studio downloads the sample code directly from Github.
 * Import Project: Use this method only if you've already cloned this project from GitHub into a local repo. From Android Studio, choose **Import project (Eclipse, ADT, Gradle)** and select the `build.gradle` file located at the root of your local repo directory.
 
-Note:  This project includes 40+ samples and may take some time to load on some platforms, such as Windows OS.
+Note:  This project includes 40+ samples and may take time to load on some platforms, such as Windows OS.
 
 Support
 -------
@@ -49,7 +49,7 @@ Support
 - Google+ Community: https://plus.google.com/communities/<...>
 - Stack Overflow: http://stackoverflow.com/questions/tagged/<...>
 
-If you've found an error in this project, please file an issue:
+If you've found an error in this sample, please file an issue:
 https://github.com/googlesamples/<...>/issues
 
 Patches are encouraged, and may be submitted by forking this project and
