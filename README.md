@@ -10,7 +10,7 @@ This repository is a replication of [LunarG sample kit](https://github.com/Lunar
 
 Getting Started
 ---------------
-Refer [Getting Started Guide](http://developer.android.com/ndk/guides/graphics/getting-started.html).
+Refer to the [Getting Started guide](https://developer.android.com/ndk/guides/graphics/getting-started.html).
 
 Screenshots
 -----------
@@ -18,29 +18,30 @@ Screenshots
 
 
 ## Prerequisites
-- Android Studio 2.3.0 or later.
-- Android SDK N-preview or later
-- NDK r12 beta or later
+- [Android Studio](https://developer.android.com/studio/index.html): 2.3.0 or higher.
+- [Android SDK](https://developer.android.com/studio/index.html): N Developer Preview or higher.
+- [Android NDK](https://developer.android.com/ndk/downloads/index.html): r12 beta or higher.
 
 ## Sample Import
-To import the samples, follow steps below:
+To import the samples, follow the steps below:
 
-### Step 1: Build shaderc in NDK.
-In a command-prompt navigate to “${ndk_root}/sources/third_party/shaderc”
-Run the following command
+### Step 1: Build shaderc in the NDK
+From the command-prompt, navigate to the `${ndk_root}/sources/third_party/shaderc` directory.
+Then, run the following command:
 
 ~~~
-../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=gnustl_static APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
+../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=[gnustl_static|gnustl_shared|c++_static|c++_shared] APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
 ~~~
 
-APP_STL can be one of gnustl_static, gnustl_shared, c++_static, c++_shared.
-Here, it’s going to use statically linked version of gnustl port as samples are using it.
+For this project, the `APP_STL` value is set to use the `gnustl_static` port, as all the project samples are using it.
 
-### Step 2: Import the samples into Android Studio with one of the following methods:
-* Import Android Code Sample: choose "Import and Android code sample", search and select "Vulkan API samples". Android Studio will download sample code directly from github.
-* Import project: choose “Import project (Eclipse, ADT, Gradle)” and select `build.gradle` locating at the root of your repo directory
+### Step 2: Import the samples into Android Studio 
+You can use one of the following methods to install this project in Android Studio:
 
-Note:  the project include 40+ subjects, takes some time to load, specially for Windows OS
+* Import Android Code Sample: Choose **Import an Android code sample**, then search for and select **Vulkan API samples**. Android Studio downloads the sample code directly from Github.
+* Import Project: Use this method only if you've already cloned this project from GitHub into a local repo. From Android Studio, choose **Import project (Eclipse, ADT, Gradle)** and select the `build.gradle` file located at the root of your local repo directory.
+
+Note:  This project includes 40+ samples and may take time to load on some platforms, such as Windows OS.
 
 Support
 -------
