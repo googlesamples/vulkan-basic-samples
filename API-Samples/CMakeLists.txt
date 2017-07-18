@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 2.8.11)
 
+# If ANDROID is ON, turn on cross-compiling for it
+if(ANDROID)
+    set(CMAKE_SYSTEM_NAME "Android")
+    set(CMAKE_SYSTEM_VERSION "7")
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR -DWIN32_LEAN_AND_MEAN)
     set(DisplayServer Win32)
@@ -87,7 +93,7 @@ function(sampleWithSingleFile)
             if(NOT LEADING_DIGIT STREQUAL "")
                 set(PACKAGE_NAME "T${PACKAGE_NAME}")
             endif()
-            set (PACKAGE_NAME org.khronos.vulkan.samples.${PACKAGE_NAME})
+            set (PACKAGE_NAME vulkan.samples.${PACKAGE_NAME})
             set (SAMPLE_DESCRIPTION "Vulkan sample: ${SAMPLE_NAME}")
             file(COPY ./android/project_template/ DESTINATION ./android/${SAMPLE_NAME}/)
 
@@ -251,7 +257,7 @@ set (S_TARGETS
     instance_layer_extension_properties create_debug_report_callback
     enable_validation_with_callback multiple_sets
     copy_blit_image template separate_image_sampler input_attachment
-    occlusion_query pipeline_cache pipeline_derivative
+    occlusion_query pipeline_cache pipeline_derivative push_descriptors
     immutable_sampler push_constants draw_subpasses secondary_command_buffer
     spirv_assembly spirv_specialization memory_barriers)
 sampleWithSingleFile()

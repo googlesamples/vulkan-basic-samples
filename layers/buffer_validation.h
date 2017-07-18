@@ -51,9 +51,9 @@ uint32_t ResolveRemainingLayers(const VkImageSubresourceRange *range, uint32_t l
 bool VerifyClearImageLayout(layer_data *device_data, GLOBAL_CB_NODE *cb_node, IMAGE_STATE *image_state,
                             VkImageSubresourceRange range, VkImageLayout dest_image_layout, const char *func_name);
 
-bool VerifyImageLayout(layer_data *device_data, GLOBAL_CB_NODE *cb_node, IMAGE_STATE *image_state,
+bool VerifyImageLayout(layer_data const *device_data, GLOBAL_CB_NODE const *cb_node, IMAGE_STATE *image_state,
                        VkImageSubresourceLayers subLayers, VkImageLayout explicit_layout, VkImageLayout optimal_layout,
-                       const char *caller, UNIQUE_VALIDATION_ERROR_CODE msg_code);
+                       const char *caller, UNIQUE_VALIDATION_ERROR_CODE msg_code, bool *error);
 
 void RecordClearImageLayout(layer_data *dev_data, GLOBAL_CB_NODE *cb_node, VkImage image, VkImageSubresourceRange range,
                             VkImageLayout dest_image_layout);
@@ -62,19 +62,19 @@ bool PreCallValidateCmdClearColorImage(layer_data *dev_data, VkCommandBuffer com
                                        VkImageLayout imageLayout, uint32_t rangeCount, const VkImageSubresourceRange *pRanges);
 
 void PreCallRecordCmdClearImage(layer_data *dev_data, VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout,
-                                uint32_t rangeCount, const VkImageSubresourceRange *pRanges, CMD_TYPE cmd_type);
+                                uint32_t rangeCount, const VkImageSubresourceRange *pRanges);
 
 bool PreCallValidateCmdClearDepthStencilImage(layer_data *dev_data, VkCommandBuffer commandBuffer, VkImage image,
                                               VkImageLayout imageLayout, uint32_t rangeCount,
                                               const VkImageSubresourceRange *pRanges);
 
-bool FindLayoutVerifyNode(layer_data *device_data, GLOBAL_CB_NODE *pCB, ImageSubresourcePair imgpair,
+bool FindLayoutVerifyNode(layer_data const *device_data, GLOBAL_CB_NODE const *pCB, ImageSubresourcePair imgpair,
                           IMAGE_CMD_BUF_LAYOUT_NODE &node, const VkImageAspectFlags aspectMask);
 
-bool FindLayoutVerifyLayout(layer_data *device_data, ImageSubresourcePair imgpair, VkImageLayout &layout,
+bool FindLayoutVerifyLayout(layer_data const *device_data, ImageSubresourcePair imgpair, VkImageLayout &layout,
                             const VkImageAspectFlags aspectMask);
 
-bool FindCmdBufLayout(layer_data *device_data, GLOBAL_CB_NODE *pCB, VkImage image, VkImageSubresource range,
+bool FindCmdBufLayout(layer_data const *device_data, GLOBAL_CB_NODE const *pCB, VkImage image, VkImageSubresource range,
                       IMAGE_CMD_BUF_LAYOUT_NODE &node);
 
 bool FindGlobalLayout(layer_data *device_data, ImageSubresourcePair imgpair, VkImageLayout &layout);
@@ -105,8 +105,9 @@ bool VerifyFramebufferAndRenderPassLayouts(layer_data *dev_data, GLOBAL_CB_NODE 
 void TransitionAttachmentRefLayout(layer_data *dev_data, GLOBAL_CB_NODE *pCB, FRAMEBUFFER_STATE *pFramebuffer,
                                    VkAttachmentReference ref);
 
-void TransitionSubpassLayouts(layer_data *dev_data, GLOBAL_CB_NODE *pCB, const VkRenderPassBeginInfo *pRenderPassBegin,
-                              const int subpass_index, FRAMEBUFFER_STATE *framebuffer_state);
+void TransitionSubpassLayouts(layer_data *, GLOBAL_CB_NODE *, const RENDER_PASS_STATE *, const int, FRAMEBUFFER_STATE *);
+
+void TransitionBeginRenderPassLayouts(layer_data *, GLOBAL_CB_NODE *, const RENDER_PASS_STATE *, FRAMEBUFFER_STATE *);
 
 bool ValidateImageAspectLayout(layer_data *device_data, GLOBAL_CB_NODE *pCB, const VkImageMemoryBarrier *mem_barrier,
                                uint32_t level, uint32_t layer, VkImageAspectFlags aspect);
@@ -152,7 +153,8 @@ void PreCallRecordCmdBlitImage(layer_data *device_data, GLOBAL_CB_NODE *cb_node,
                                IMAGE_STATE *dst_image_state);
 
 bool ValidateCmdBufImageLayouts(layer_data *device_data, GLOBAL_CB_NODE *pCB,
-                                std::unordered_map<ImageSubresourcePair, IMAGE_LAYOUT_NODE> &imageLayoutMap);
+                                std::unordered_map<ImageSubresourcePair, IMAGE_LAYOUT_NODE> const &globalImageLayoutMap,
+                                std::unordered_map<ImageSubresourcePair, IMAGE_LAYOUT_NODE> &overlayLayoutMap);
 
 void UpdateCmdBufImageLayouts(layer_data *device_data, GLOBAL_CB_NODE *pCB);
 
@@ -167,10 +169,10 @@ bool ValidateLayouts(core_validation::layer_data *dev_data, VkDevice device, con
 bool ValidateMapImageLayouts(core_validation::layer_data *dev_data, VkDevice device, DEVICE_MEM_INFO const *mem_info,
                              VkDeviceSize offset, VkDeviceSize end_offset);
 
-bool ValidateImageUsageFlags(layer_data *dev_data, IMAGE_STATE const *image_state, VkFlags desired, VkBool32 strict,
+bool ValidateImageUsageFlags(layer_data *dev_data, IMAGE_STATE const *image_state, VkFlags desired, bool strict,
                              int32_t const msgCode, char const *func_name, char const *usage_string);
 
-bool ValidateBufferUsageFlags(layer_data *dev_data, BUFFER_STATE const *buffer_state, VkFlags desired, VkBool32 strict,
+bool ValidateBufferUsageFlags(layer_data *dev_data, BUFFER_STATE const *buffer_state, VkFlags desired, bool strict,
                               int32_t const msgCode, char const *func_name, char const *usage_string);
 
 bool PreCallValidateCreateBuffer(layer_data *dev_data, const VkBufferCreateInfo *pCreateInfo);
@@ -184,8 +186,8 @@ void PostCallRecordCreateBufferView(layer_data *device_data, const VkBufferViewC
 bool ValidateImageAspectMask(layer_data *device_data, VkImage image, VkFormat format, VkImageAspectFlags aspect_mask,
                              const char *func_name);
 
-bool ValidateImageSubrangeLevelLayerCounts(layer_data *device_data, const VkImageSubresourceRange &subresourceRange,
-                                           const char *func_name);
+bool ValidateImageSubresourceRange(const layer_data *device_data, const IMAGE_STATE *image_state, const bool is_imageview_2d_array,
+                                   const VkImageSubresourceRange &subresourceRange, const char *cmd_name, const char *param_name);
 
 bool PreCallValidateCreateImageView(layer_data *device_data, const VkImageViewCreateInfo *create_info);
 

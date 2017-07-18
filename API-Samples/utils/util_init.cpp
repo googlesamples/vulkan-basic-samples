@@ -513,14 +513,16 @@ void init_depth_buffer(struct sample_info &info) {
     VkImageCreateInfo image_info = {};
 
     /* allow custom depth formats */
-    if (info.depth.format == VK_FORMAT_UNDEFINED) info.depth.format = VK_FORMAT_D16_UNORM;
-
 #ifdef __ANDROID__
     // Depth format needs to be VK_FORMAT_D24_UNORM_S8_UINT on Android.
-    const VkFormat depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
+    info.depth.format = VK_FORMAT_D24_UNORM_S8_UINT;
+#elif defined(VK_USE_PLATFORM_IOS_MVK)
+    if (info.depth.format == VK_FORMAT_UNDEFINED) info.depth.format = VK_FORMAT_D32_SFLOAT;
 #else
-    const VkFormat depth_format = info.depth.format;
+    if (info.depth.format == VK_FORMAT_UNDEFINED) info.depth.format = VK_FORMAT_D16_UNORM;
 #endif
+
+    const VkFormat depth_format = info.depth.format;
     VkFormatProperties props;
     vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
     if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
@@ -1879,7 +1881,7 @@ void init_texture(struct sample_info &info, const char *textureName, VkImageUsag
     /* track a description of the texture */
     info.texture_data.image_info.imageView = info.textures.back().view;
     info.texture_data.image_info.sampler = info.textures.back().sampler;
-    info.texture_data.image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    info.texture_data.image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 }
 
 void init_viewports(struct sample_info &info) {

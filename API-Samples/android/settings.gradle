@@ -1,0 +1,59 @@
+// Copyright 2016 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// configure path to the source code generated on your machine
+include ':01-init_instance'
+include ':02-enumerate_devices'
+include ':03-init_device'
+include ':04-init_command_buffer'
+include ':05-init_swapchain'
+include ':06-init_depth_buffer'
+include ':07-init_uniform_buffer'
+include ':08-init_pipeline_layout'
+include ':09-init_descriptor_set'
+include ':10-init_render_pass'
+include ':11-init_shaders'
+include ':12-init_frame_buffers'
+include ':13-init_vertex_buffer'
+include ':14-init_pipeline'
+include ':15-draw_cube'
+include ':enumerate_devices_adv'
+include ':init_texture'
+include ':multithreaded_command_buffers'
+include ':draw_textured_cube'
+include ':dynamic_uniform'
+include ':texel_buffer'
+include ':events'
+include ':instance_layer_properties'
+include ':instance_extension_properties'
+include ':instance_layer_extension_properties'
+include ':create_debug_report_callback'
+include ':enable_validation_with_callback'
+include ':multiple_sets'
+include ':copy_blit_image'
+include ':template'
+include ':separate_image_sampler'
+include ':input_attachment'
+include ':occlusion_query'
+include ':pipeline_cache'
+include ':pipeline_derivative'
+include ':push_descriptors'
+include ':immutable_sampler'
+include ':push_constants'
+include ':draw_subpasses'
+include ':secondary_command_buffer'
+include ':spirv_assembly'
+include ':spirv_specialization'
+include ':memory_barriers'
+

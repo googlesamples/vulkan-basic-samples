@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <!-- BEGIN_INCLUDE(manifest) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="org.khronos.vulkan.samples.T10_init_render_pass"
+        package="vulkan.samples.T10_init_render_pass"
         android:versionCode="1"
         android:versionName="1.0">
 

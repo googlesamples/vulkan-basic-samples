@@ -79,6 +79,14 @@ class DispatchTableHelperOutputGenerator(OutputGenerator):
     # Called once at the beginning of each run
     def beginFile(self, genOpts):
         OutputGenerator.beginFile(self, genOpts)
+        # Protect against multiple inclusions
+        self.protect_header = False
+        if (genOpts.protectFile and genOpts.filename):
+            self.protect_header = True
+            headerSym = '__' + re.sub('\.h', '_h_', os.path.basename(genOpts.filename))
+            write('#ifndef', headerSym, file=self.outFile)
+            write('#define', headerSym, '1', file=self.outFile)
+            self.newline()
         # User-supplied prefix text, if any (list of strings)
         if (genOpts.prefixText):
             for s in genOpts.prefixText:
@@ -130,6 +138,9 @@ class DispatchTableHelperOutputGenerator(OutputGenerator):
         write("\n", file=self.outFile)
         write(instance_table, file=self.outFile);
 
+        if self.protect_header:
+            self.newline()
+            write('#endif', file=self.outFile)
         # Finish processing in superclass
         OutputGenerator.endFile(self)
     #
@@ -190,7 +201,16 @@ class DispatchTableHelperOutputGenerator(OutputGenerator):
 
             if item[1] is not None:
                 table += '#ifdef %s\n' % item[1]
-            table += '    table->%s = (PFN_%s) gpa(%s, "%s");\n' % (base_name, item[0], table_type, item[0])
+
+            # If we're looking for the proc we are passing in, just point the table to it.  This fixes the issue where
+            # a layer overrides the function name for the loader.
+            if (table_type == 'device' and base_name == 'GetDeviceProcAddr'):
+                table += '    table->GetDeviceProcAddr = gpa;\n'
+            elif (table_type != 'device' and base_name == 'GetInstanceProcAddr'):
+                table += '    table->GetInstanceProcAddr = gpa;\n'
+            else:
+                table += '    table->%s = (PFN_%s) gpa(%s, "%s");\n' % (base_name, item[0], table_type, item[0])
+
             if item[1] is not None:
                 table += '#endif // %s\n' % item[1]
         table += '}'

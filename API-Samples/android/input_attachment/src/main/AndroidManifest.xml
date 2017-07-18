@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <!-- BEGIN_INCLUDE(manifest) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="org.khronos.vulkan.samples.input_attachment"
+        package="vulkan.samples.input_attachment"
         android:versionCode="1"
         android:versionName="1.0">
 

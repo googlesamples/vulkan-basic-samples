@@ -309,7 +309,6 @@ typedef struct {
     VkDeviceMemory uniform_memory;
     VkFramebuffer framebuffer;
     VkDescriptorSet descriptor_set;
-    VkFence fence;
 } SwapchainImageResources;
 
 struct demo {
@@ -809,9 +808,6 @@ void demo_update_data_buffer(struct demo *demo) {
                   (float)degreesToRadians(demo->spin_angle));
     mat4x4_mul(MVP, VP, demo->model_matrix);
 
-    vkWaitForFences(demo->device, 1, &demo->swapchain_image_resources[demo->current_buffer].fence,
-                    VK_TRUE, UINT64_MAX);
-
     err = vkMapMemory(demo->device,
                       demo->swapchain_image_resources[demo->current_buffer].uniform_memory, 0,
                       VK_WHOLE_SIZE, 0, (void **)&pData);
@@ -957,33 +953,31 @@ void DemoUpdateTargetIPD(struct demo *demo) {
 static void demo_draw(struct demo *demo) {
     VkResult U_ASSERT_ONLY err;
 
-    // Ensure no more than FRAME_LAG presentations are outstanding
+    // Ensure no more than FRAME_LAG renderings are outstanding
     vkWaitForFences(demo->device, 1, &demo->fences[demo->frame_index], VK_TRUE, UINT64_MAX);
     vkResetFences(demo->device, 1, &demo->fences[demo->frame_index]);
 
-    // Get the index of the next available swapchain image:
-    err = demo->fpAcquireNextImageKHR(demo->device, demo->swapchain, UINT64_MAX,
-                                      demo->image_acquired_semaphores[demo->frame_index],
-                                      demo->fences[demo->frame_index],
-                                      &demo->current_buffer);
+    do {
+        // Get the index of the next available swapchain image:
+        err = demo->fpAcquireNextImageKHR(demo->device, demo->swapchain, UINT64_MAX,
+                                          demo->image_acquired_semaphores[demo->frame_index],
+                                          VK_NULL_HANDLE, &demo->current_buffer);
+
+        if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+            // demo->swapchain is out of date (e.g. the window was resized) and
+            // must be recreated:
+            demo_resize(demo);
+        } else if (err == VK_SUBOPTIMAL_KHR) {
+            // demo->swapchain is not as optimal as it could be, but the platform's
+            // presentation engine will still present the image correctly.
+            break;
+        } else {
+            assert(!err);
+        }
+    } while (err != VK_SUCCESS);
 
     demo_update_data_buffer(demo);
 
-    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
-        // demo->swapchain is out of date (e.g. the window was resized) and
-        // must be recreated:
-        demo->frame_index += 1;
-        demo->frame_index %= FRAME_LAG;
-
-        demo_resize(demo);
-        demo_draw(demo);
-        return;
-    } else if (err == VK_SUBOPTIMAL_KHR) {
-        // demo->swapchain is not as optimal as it could be, but the platform's
-        // presentation engine will still present the image correctly.
-    } else {
-        assert(!err);
-    }
     if (demo->VK_GOOGLE_display_timing_enabled) {
         // Look at what happened to previous presents, and make appropriate
         // adjustments in timing:
@@ -1012,9 +1006,8 @@ static void demo_draw(struct demo *demo) {
     submit_info.pCommandBuffers = &demo->swapchain_image_resources[demo->current_buffer].cmd;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &demo->draw_complete_semaphores[demo->frame_index];
-    vkResetFences(demo->device, 1, &demo->swapchain_image_resources[demo->current_buffer].fence);
     err = vkQueueSubmit(demo->graphics_queue, 1, &submit_info,
-                        demo->swapchain_image_resources[demo->current_buffer].fence);
+                        demo->fences[demo->frame_index]);
     assert(!err);
 
     if (demo->separate_present_queue) {
@@ -1313,12 +1306,6 @@ static void demo_prepare_buffers(struct demo *demo) {
                                                demo->swapchainImageCount);
     assert(demo->swapchain_image_resources);
 
-    VkFenceCreateInfo fence_ci = {
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .pNext = NULL,
-        .flags = VK_FENCE_CREATE_SIGNALED_BIT
-    };
-
     for (i = 0; i < demo->swapchainImageCount; i++) {
         VkImageViewCreateInfo color_image_view = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1347,9 +1334,14 @@ static void demo_prepare_buffers(struct demo *demo) {
         err = vkCreateImageView(demo->device, &color_image_view, NULL,
                                 &demo->swapchain_image_resources[i].view);
         assert(!err);
+        demo->refresh_duration = rc_dur.refreshDuration;
 
-        err = vkCreateFence(demo->device, &fence_ci, NULL, &demo->swapchain_image_resources[i].fence);
-        assert(!err);
+        demo->syncd_with_actual_presents = false;
+        // Initially target 1X the refresh duration:
+        demo->target_IPD = demo->refresh_duration;
+        demo->refresh_duration_multiplier = 1;
+        demo->prev_desired_present_time = 0;
+        demo->next_present_id = 1;
     }
 
     if (demo->VK_GOOGLE_display_timing_enabled) {
@@ -2330,6 +2322,31 @@ static void demo_prepare(struct demo *demo) {
         }
     }
 
+    if (demo->separate_present_queue) {
+        const VkCommandPoolCreateInfo present_cmd_pool_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = NULL,
+            .queueFamilyIndex = demo->present_queue_family_index,
+            .flags = 0,
+        };
+        err = vkCreateCommandPool(demo->device, &present_cmd_pool_info, NULL,
+                                  &demo->present_cmd_pool);
+        assert(!err);
+        const VkCommandBufferAllocateInfo present_cmd_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = NULL,
+            .commandPool = demo->present_cmd_pool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+        for (uint32_t i = 0; i < demo->swapchainImageCount; i++) {
+            err = vkAllocateCommandBuffers(
+                demo->device, &present_cmd_info, &demo->swapchain_image_resources[i].graphics_to_present_cmd);
+            assert(!err);
+            demo_build_image_ownership_cmd(demo, i);
+        }
+    }
+
     demo_prepare_descriptor_pool(demo);
     demo_prepare_descriptor_set(demo);
 
@@ -2399,7 +2416,6 @@ static void demo_cleanup(struct demo *demo) {
                              &demo->swapchain_image_resources[i].cmd);
         vkDestroyBuffer(demo->device, demo->swapchain_image_resources[i].uniform_buffer, NULL);
         vkFreeMemory(demo->device, demo->swapchain_image_resources[i].uniform_memory, NULL);
-        vkDestroyFence(demo->device, demo->swapchain_image_resources[i].fence, NULL);
     }
     free(demo->swapchain_image_resources);
     free(demo->queue_props);
@@ -2414,7 +2430,6 @@ static void demo_cleanup(struct demo *demo) {
         demo->DestroyDebugReportCallback(demo->inst, demo->msg_callback, NULL);
     }
     vkDestroySurfaceKHR(demo->inst, demo->surface, NULL);
-    vkDestroyInstance(demo->inst, NULL);
 
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
     XDestroyWindow(demo->display, demo->xlib_window);
@@ -2432,6 +2447,8 @@ static void demo_cleanup(struct demo *demo) {
     wl_display_disconnect(demo->display);
 #elif defined(VK_USE_PLATFORM_MIR_KHR)
 #endif
+
+    vkDestroyInstance(demo->inst, NULL);
 }
 
 static void demo_resize(struct demo *demo) {
@@ -2476,7 +2493,6 @@ static void demo_resize(struct demo *demo) {
                              &demo->swapchain_image_resources[i].cmd);
         vkDestroyBuffer(demo->device, demo->swapchain_image_resources[i].uniform_buffer, NULL);
         vkFreeMemory(demo->device, demo->swapchain_image_resources[i].uniform_memory, NULL);
-        vkDestroyFence(demo->device, demo->swapchain_image_resources[i].fence, NULL);
     }
     vkDestroyCommandPool(demo->device, demo->cmd_pool, NULL);
     if (demo->separate_present_queue) {
@@ -3035,7 +3051,7 @@ static void demo_init_vk(struct demo *demo) {
     char *instance_validation_layers_alt2[] = {
         "VK_LAYER_GOOGLE_threading",      "VK_LAYER_LUNARG_parameter_validation",
         "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_core_validation",
-        "VK_LAYER_LUNARG_swapchain",      "VK_LAYER_GOOGLE_unique_objects"
+        "VK_LAYER_GOOGLE_unique_objects"
     };
 
     /* Look for validation layers */
