@@ -58,3 +58,9 @@ build-android/external
 *.files
 *.includes
 *.autosave
+.DS_Store
+.idea
+.gradle
+.externalNativeBuild
+*.iml
+

@@ -26,7 +26,10 @@
  * Author: Mark Young <marky@lunarG.com>
  */
 
-#include <inttypes.h>  //Needed for PRIxLEAST64
+// Following items are needed for C++ to work with PRIxLEAST64
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include <stdint.h> // For UINT32_MAX
 
 #include <algorithm>
@@ -384,12 +387,14 @@ VKAPI_ATTR void *VKAPI_CALL ReallocCallbackFunc(void *pUserData, void *pOriginal
                     return pOriginal;
                 } else {
                     void *pNew = AllocCallbackFunc(pUserData, size, alignment, allocationScope);
-                    size_t copy_size = size;
-                    if (g_allocated_vector[iii].requested_size_bytes < size) {
-                        copy_size = g_allocated_vector[iii].requested_size_bytes;
+                    if (pNew != NULL) {
+                        size_t copy_size = size;
+                        if (g_allocated_vector[iii].requested_size_bytes < size) {
+                            copy_size = g_allocated_vector[iii].requested_size_bytes;
+                        }
+                        memcpy(pNew, pOriginal, copy_size);
+                        FreeCallbackFunc(pUserData, pOriginal);
                     }
-                    memcpy(pNew, pOriginal, copy_size);
-                    FreeCallbackFunc(pUserData, pOriginal);
                     return pNew;
                 }
             }
@@ -1232,7 +1237,7 @@ TEST(Allocation, DeviceButNotInstance) {
 
 // Test failure during vkCreateInstance to make sure we don't leak memory if
 // one of the out-of-memory conditions trigger.
-TEST(Allocation, CreateInstanceItentionalAllocFail) {
+TEST(Allocation, CreateInstanceIntentionalAllocFail) {
     auto const info = VK::InstanceCreateInfo();
     VkInstance instance = VK_NULL_HANDLE;
     VkAllocationCallbacks alloc_callbacks = {};
@@ -1259,12 +1264,12 @@ TEST(Allocation, CreateInstanceItentionalAllocFail) {
         FreeAllocTracker();
     } while (result == VK_ERROR_OUT_OF_HOST_MEMORY);
 
-    vkDestroyInstance(instance, NULL);
+    vkDestroyInstance(instance, &alloc_callbacks);
 }
 
 // Test failure during vkCreateDevice to make sure we don't leak memory if
 // one of the out-of-memory conditions trigger.
-TEST(Allocation, CreateDeviceItentionalAllocFail) {
+TEST(Allocation, CreateDeviceIntentionalAllocFail) {
     auto const info = VK::InstanceCreateInfo();
     VkInstance instance = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -1333,7 +1338,7 @@ TEST(Allocation, CreateDeviceItentionalAllocFail) {
 
 // Test failure during vkCreateInstance and vkCreateDevice to make sure we don't
 // leak memory if one of the out-of-memory conditions trigger.
-TEST(Allocation, CreateInstanceDeviceItentionalAllocFail) {
+TEST(Allocation, CreateInstanceDeviceIntentionalAllocFail) {
     auto const info = VK::InstanceCreateInfo();
     VkInstance instance = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -1363,7 +1368,7 @@ TEST(Allocation, CreateInstanceDeviceItentionalAllocFail) {
         physicalCount = 0;
         result = vkEnumeratePhysicalDevices(instance, &physicalCount, nullptr);
         if (result == VK_ERROR_OUT_OF_HOST_MEMORY) {
-            vkDestroyInstance(instance, NULL);
+            vkDestroyInstance(instance, &alloc_callbacks);
             if (!IsAllocTrackerEmpty()) {
                 std::cout << "Failed on index " << fail_index << '\n';
                 ASSERT_EQ(true, IsAllocTrackerEmpty());
@@ -1376,7 +1381,7 @@ TEST(Allocation, CreateInstanceDeviceItentionalAllocFail) {
         std::unique_ptr<VkPhysicalDevice[]> physical(new VkPhysicalDevice[physicalCount]);
         result = vkEnumeratePhysicalDevices(instance, &physicalCount, physical.get());
         if (result == VK_ERROR_OUT_OF_HOST_MEMORY) {
-            vkDestroyInstance(instance, NULL);
+            vkDestroyInstance(instance, &alloc_callbacks);
             if (!IsAllocTrackerEmpty()) {
                 std::cout << "Failed on index " << fail_index << '\n';
                 ASSERT_EQ(true, IsAllocTrackerEmpty());
@@ -1410,7 +1415,7 @@ TEST(Allocation, CreateInstanceDeviceItentionalAllocFail) {
 
         result = vkCreateDevice(physical[0], deviceInfo, &alloc_callbacks, &device);
         if (result == VK_ERROR_OUT_OF_HOST_MEMORY) {
-            vkDestroyInstance(instance, NULL);
+            vkDestroyInstance(instance, &alloc_callbacks);
             if (!IsAllocTrackerEmpty()) {
                 std::cout << "Failed on index " << fail_index << '\n';
                 ASSERT_EQ(true, IsAllocTrackerEmpty());
@@ -1419,7 +1424,7 @@ TEST(Allocation, CreateInstanceDeviceItentionalAllocFail) {
             continue;
         }
         vkDestroyDevice(device, &alloc_callbacks);
-        vkDestroyInstance(instance, NULL);
+        vkDestroyInstance(instance, &alloc_callbacks);
         FreeAllocTracker();
     }
 }

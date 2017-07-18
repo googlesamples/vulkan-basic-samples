@@ -23,6 +23,8 @@ function Exec
     }
 }
 
+Copy-Item -force ..\loader\$dPath\vulkan-1.dll $dPath
+
 echo "Initialize Instance"
 Exec "01-init_instance"
 echo "Enumerate Devices"
@@ -87,6 +89,8 @@ echo "Multithreaded Command Buffers"
 Exec "multithreaded_command_buffers"
 echo "Push Constants"
 Exec "push_constants"
+echo "Push Descriptors"
+Exec "push_descriptors"
 echo "Separate image sampler"
 Exec "separate_image_sampler"
 echo "Draw Sub-passes"

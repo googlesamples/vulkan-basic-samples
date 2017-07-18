@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <!-- BEGIN_INCLUDE(manifest) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="org.khronos.vulkan.samples.instance_layer_extension_properties"
+        package="vulkan.samples.instance_layer_extension_properties"
         android:versionCode="1"
         android:versionName="1.0">
 
