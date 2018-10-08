@@ -1,5 +1,8 @@
 find_package(PythonInterp 3 REQUIRED)
 find_package(Threads REQUIRED)
+find_program(GLSLANG_VALIDATOR names glslangValidator
+    HINTS "${GLSLANG_INSTALL_DIR}/bin"
+    )
 
 macro(generate_dispatch_table out)
     add_custom_command(OUTPUT ${out}
@@ -47,11 +50,13 @@ set(definitions
 
 if(SDK_INCLUDE_PATH)
     set(includes
+        PRIVATE ${Vulkan_INCLUDE_DIR}
         PRIVATE ${GLMINC_PREFIX}
         PRIVATE ${SDK_INCLUDE_PATH}
         PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 else()
     set(includes
+        PRIVATE ${Vulkan_INCLUDE_DIR}
         PRIVATE ${GLMINC_PREFIX}
         PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 endif()
@@ -70,12 +75,21 @@ if(WIN32)
 else()
     list(APPEND libraries PRIVATE -ldl)
 
-    find_package(XCB REQUIRED)
+    if(BUILD_WSI_XCB_SUPPORT AND DEMOS_WSI_SELECTION STREQUAL "XCB")
+        find_package(XCB REQUIRED)
 
-    list(APPEND sources ShellXcb.cpp ShellXcb.h)
-    list(APPEND definitions PRIVATE -DVK_USE_PLATFORM_XCB_KHR)
-    list(APPEND includes PRIVATE ${XCB_INCLUDES})
-    list(APPEND libraries PRIVATE ${XCB_LIBRARIES})
+        list(APPEND sources ShellXcb.cpp ShellXcb.h)
+        list(APPEND definitions PRIVATE -DVK_USE_PLATFORM_XCB_KHR)
+        list(APPEND includes PRIVATE ${XCB_INCLUDES})
+        list(APPEND libraries PRIVATE ${XCB_LIBRARIES})
+    elseif(BUILD_WSI_WAYLAND_SUPPORT AND DEMOS_WSI_SELECTION STREQUAL "WAYLAND")
+        find_package(Wayland REQUIRED)
+
+        list(APPEND sources ShellWayland.cpp ShellWayland.h)
+        list(APPEND definitions PRIVATE -DVK_USE_PLATFORM_WAYLAND_KHR)
+        list(APPEND includes PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
+        list(APPEND libraries PRIVATE ${WAYLAND_CLIENT_LIBRARIES})
+    endif()
 endif()
 
 
@@ -83,3 +97,5 @@ add_executable(Hologram ${sources})
 target_compile_definitions(Hologram ${definitions})
 target_include_directories(Hologram ${includes})
 target_link_libraries(Hologram ${libraries})
+
+install(TARGETS Hologram RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

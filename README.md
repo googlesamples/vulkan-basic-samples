@@ -18,9 +18,9 @@ Screenshots
 
 
 ## Prerequisites
-- [Android Studio](https://developer.android.com/studio/index.html): 2.3.0 or higher.
+- [Android Studio](https://developer.android.com/studio/index.html): 3.2.0 or higher.
 - [Android SDK](https://developer.android.com/studio/index.html): N Developer Preview or higher.
-- [Android NDK](https://developer.android.com/ndk/downloads/index.html): r12 beta or higher.
+- [Android NDK](https://developer.android.com/ndk/downloads/index.html): r17+.
 
 ## Sample Import
 To import the samples, follow the steps below:
@@ -30,16 +30,19 @@ From the command-prompt, navigate to the `${ndk_root}/sources/third_party/shader
 Then, run the following command:
 
 ~~~
-../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=[gnustl_static|gnustl_shared|c++_static|c++_shared] APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
+../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=[c++_static|c++_shared] APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
 ~~~
 
-For this project, the `APP_STL` value is set to use the `gnustl_static` port, as all the project samples are using it.
+For this project, the `APP_STL` value is set to use the `c++_static`, as all of the project samples are using it.
 
 ### Step 2: Import the samples into Android Studio 
 You can use one of the following methods to install this project in Android Studio:
 
 * Import Android Code Sample: Choose **Import an Android code sample**, then search for and select **Vulkan API samples**. Android Studio downloads the sample code directly from Github.
-* Import Project: Use this method only if you've already cloned this project from GitHub into a local repo. From Android Studio, choose **Import project (Eclipse, ADT, Gradle)** and select the `build.gradle` file located at the root of your local repo directory.
+* Import Project: Use this method only if you've already cloned this project from GitHub into a local repo. From Android Studio, choose **Open an existing Android Studio project** and select the `build.gradle` file located at the root of your local repo directory.
+
+The samples are configured to build armeabi-v7a; to build other android ARCH,
+change abiFilters in $your-project/build.gradle.
 
 Note:  This project includes 40+ samples and may take time to load on some platforms, such as Windows OS.
 

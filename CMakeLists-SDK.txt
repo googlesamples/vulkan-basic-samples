@@ -3,6 +3,7 @@ project (VULKAN_SAMPLES)
 # set (CMAKE_VERBOSE_MAKEFILE 1)
 set(API_NAME "Vulkan" CACHE STRING "API name to use when building")
 string(TOLOWER ${API_NAME} API_LOWERCASE)
+include(GNUInstallDirs)
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/../x86_64/include")
     set(SDK_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/../x86_64/include")
@@ -20,16 +21,25 @@ set(MAJOR "1")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-if(NOT WIN32)
-    include(FindPkgConfig)
-endif()
-
 set (CMAKE_INSTALL_PREFIX "")
 
 set (UTILS_NAME vsamputils)
 
 if(NOT WIN32)
-    find_package(XCB REQUIRED)
+    include(FindPkgConfig)
+    option(BUILD_WSI_XCB_SUPPORT "Build XCB WSI support" ON)
+    option(BUILD_WSI_WAYLAND_SUPPORT "Build Wayland WSI support" OFF)
+    set(DEMOS_WSI_SELECTION "XCB" CACHE STRING "Select WSI target for demos (XCB, XLIB, WAYLAND, MIR, DISPLAY)")
+    set(SAMPLES_WSI_SELECTION "XCB" CACHE STRING "Select WSI target for api-samples (XCB, WAYLAND, DISPLAY)")
+
+    if (BUILD_WSI_XCB_SUPPORT)
+         find_package(XCB REQUIRED)
+    endif()
+
+    if (BUILD_WSI_WAYLAND_SUPPORT)
+        find_package(Wayland REQUIRED)
+    endif()
+
     set (BUILDTGT_DIR build)
     set (BINDATA_DIR x86_64/bin)
     set (LIBSOURCE_DIR Lib)
@@ -79,9 +89,11 @@ if (WIN32)
                              "${CMAKE_SOURCE_DIR}/../glslang/${BUILDTGT_DIR}/OGLCompilersDLL/Release"
                              "${CMAKE_SOURCE_DIR}/../glslang/${BUILDTGT_DIR}/SPIRV/Release" )
     set (SPIRV_TOOLS_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../spirv-tools/${BUILDTGT_DIR}/source/Release")
+    set (SPIRV_TOOLS_OPT_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../spirv-tools/${BUILDTGT_DIR}/source/opt/Release")
 else()
     set (GLSLANG_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../glslang/build/install/lib" "${CMAKE_SOURCE_DIR}/../x86_64/lib/glslang" )
     set (SPIRV_TOOLS_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../spirv-tools/build" "${CMAKE_SOURCE_DIR}/../x86_64/lib/spirv-tools" )
+    set (SPIRV_TOOLS_OPT_SEARCH_PATH "${SPIRV_TOOLS_SEARCH_PATH}")
 endif()
 
 find_library(GLSLANG_LIB NAMES glslang
@@ -102,6 +114,12 @@ find_library(SPIRV_LIB NAMES SPIRV
 find_library(SPIRV_TOOLS_LIB NAMES SPIRV-Tools
              HINTS ${SPIRV_TOOLS_SEARCH_PATH} )
 
+find_library(SPIRV_TOOLS_OPT_LIB NAMES SPIRV-Tools-opt
+             HINTS ${SPIRV_TOOLS_OPT_SEARCH_PATH} )
+
+find_library(SPIRV_REMAPPER_LIB NAMES SPVRemapper
+             HINTS ${GLSLANG_SEARCH_PATH} )
+
 # On Windows, we must pair Debug and Release appropriately
 if (WIN32)
     set (GLSLANG_DEBUG_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../glslang/${BUILDTGT_DIR}/glslang/Debug"
@@ -110,6 +128,7 @@ if (WIN32)
                                    "${CMAKE_SOURCE_DIR}/../glslang/${BUILDTGT_DIR}/OGLCompilersDLL/Debug"
                                    "${CMAKE_SOURCE_DIR}/../glslang/${BUILDTGT_DIR}/SPIRV/Debug")
     set (SPIRV_TOOLS_DEBUG_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../spirv-tools/${BUILDTGT_DIR}/source/Debug")
+    set (SPIRV_TOOLS_OPT_DEBUG_SEARCH_PATH "${CMAKE_SOURCE_DIR}/../spirv-tools/${BUILDTGT_DIR}/source/opt/Debug")
 
     add_library(glslang     STATIC IMPORTED)
     add_library(OGLCompiler STATIC IMPORTED)
@@ -118,6 +137,8 @@ if (WIN32)
     add_library(SPIRV       STATIC IMPORTED)
     add_library(Loader      STATIC IMPORTED)
     add_library(SPIRV-Tools STATIC IMPORTED)
+    add_library(SPIRV-Tools-opt STATIC IMPORTED)
+    add_library(SPVRemapper STATIC IMPORTED)
 
     find_library(GLSLANG_DLIB NAMES glslangd
                  HINTS ${GLSLANG_DEBUG_SEARCH_PATH} )
@@ -131,6 +152,10 @@ if (WIN32)
                  HINTS ${GLSLANG_DEBUG_SEARCH_PATH} )
     find_library(SPIRV_TOOLS_DLIB NAMES SPIRV-Tools
                  HINTS ${SPIRV_TOOLS_DEBUG_SEARCH_PATH} )
+    find_library(SPIRV_TOOLS_OPT_DLIB NAMES SPIRV-Tools-opt
+                 HINTS ${SPIRV_TOOLS_OPT_DEBUG_SEARCH_PATH} )
+    find_library(SPIRV_REMAPPER_DLIB NAMES SPVRemapperd
+                 HINTS ${GLSLANG_DEBUG_SEARCH_PATH} )
 
     set_target_properties(glslang PROPERTIES
                          IMPORTED_LOCATION       "${GLSLANG_LIB}"
@@ -150,12 +175,18 @@ if (WIN32)
     set_target_properties(SPIRV-Tools PROPERTIES
                          IMPORTED_LOCATION       "${SPIRV_TOOLS_LIB}"
                          IMPORTED_LOCATION_DEBUG "${SPIRV_TOOLS_DLIB}")
+    set_target_properties(SPIRV-Tools-opt PROPERTIES
+                         IMPORTED_LOCATION       "${SPIRV_TOOLS_OPT_LIB}"
+                         IMPORTED_LOCATION_DEBUG "${SPIRV_TOOLS_OPT_DLIB}")
+    set_target_properties(SPVRemapper PROPERTIES
+                         IMPORTED_LOCATION       "${SPIRV_REMAPPER_LIB}"
+                         IMPORTED_LOCATION_DEBUG "${SPIRV_REMAPPER_DLIB}")
 
-    set (GLSLANG_LIBRARIES glslang OGLCompiler OSDependent HLSL SPIRV)
-    set (SPIRV_TOOLS_LIBRARIES SPIRV-Tools)
+    set (SPIRV_TOOLS_LIBRARIES SPIRV-Tools-opt SPIRV-Tools)
+    set (GLSLANG_LIBRARIES glslang OGLCompiler OSDependent HLSL SPIRV SPVRemapper ${SPIRV_TOOLS_LIBRARIES})
 else ()
-    set (GLSLANG_LIBRARIES ${GLSLANG_LIB} ${OGLCompiler_LIB} ${OSDependent_LIB} ${HLSL_LIB} ${SPIRV_LIB})
-    set (SPIRV_TOOLS_LIBRARIES ${SPIRV_TOOLS_LIB})
+    set (SPIRV_TOOLS_LIBRARIES ${SPIRV_TOOLS_OPT_LIB} ${SPIRV_TOOLS_LIB})
+    set (GLSLANG_LIBRARIES ${GLSLANG_LIB} ${OGLCompiler_LIB} ${OSDependent_LIB} ${HLSL_LIB} ${SPIRV_LIB} ${SPIRV_REMAPPER_LIB} ${SPIRV_TOOLS_LIBRARIES})
 endif()
 
 set (GLMINCLUDES "${CMAKE_SOURCE_DIR}/API-Samples/utils")
@@ -204,9 +235,10 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/layers")
     set (VULKAN_LOADER ${VULKAN_LOADER_NAME})
 else()
     find_library(VULKAN_LOADER NAMES ${VULKAN_LOADER_NAME}
-                 HINTS "${CMAKE_SOURCE_DIR}/../${BINDATA_DIR}" "${CMAKE_SOURCE_DIR}/../x86_64/lib" )
+                 HINTS "${CMAKE_SOURCE_DIR}/../${LIBSOURCE_DIR}" "${CMAKE_SOURCE_DIR}/../x86_64/lib" )
 endif()
+
+add_definitions(-DAPI_NAME="${API_NAME}")
 
 add_subdirectory(API-Samples)
 add_subdirectory(Sample-Programs/Hologram)
-add_subdirectory(Layer-Samples/Overlay)

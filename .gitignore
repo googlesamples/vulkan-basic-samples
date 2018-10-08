@@ -63,4 +63,4 @@ build-android/external
 .gradle
 .externalNativeBuild
 *.iml
-
+.vscode/

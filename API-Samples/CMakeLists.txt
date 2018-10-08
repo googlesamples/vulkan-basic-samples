@@ -12,19 +12,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
     add_definitions(-DVK_USE_PLATFORM_ANDROID_KHR)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    if (BUILD_WSI_XCB_SUPPORT)
+    if (SAMPLES_WSI_SELECTION STREQUAL "XCB")
+        if (NOT BUILD_WSI_XCB_SUPPORT)
+            message( FATAL_ERROR "Selected XCB for samples build but not building Xcb support" )
+        endif()
         add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
-    endif()
-
-    if (BUILD_WSI_XLIB_SUPPORT)
+    elseif (SAMPLES_WSI_SELECTION STREQUAL "XLIB")
+        if (NOT BUILD_WSI_XLIB_SUPPORT)
+            message( FATAL_ERROR "Selected XLIB for samples build but not building Xlib support" )
+        endif()
         add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
-    endif()
-
-    if (BUILD_WSI_WAYLAND_SUPPORT)
+    elseif (SAMPLES_WSI_SELECTION STREQUAL "WAYLAND")
+        if (NOT BUILD_WSI_WAYLAND_SUPPORT)
+            message( FATAL_ERROR "Selected Wayland for samples build but not building Wayland support" )
+        endif()
         add_definitions(-DVK_USE_PLATFORM_WAYLAND_KHR)
-    endif()
-
-    if (BUILD_WSI_MIR_SUPPORT)
+    elseif (SAMPLES_WSI_SELECTION STREQUAL "MIR")
+        if (NOT BUILD_WSI_MIR_SUPPORT)
+            message( FATAL_ERROR "Selected MIR for samples build but not building Mir support" )
+        endif()
         add_definitions(-DVK_USE_PLATFORM_MIR_KHR)
         include_directories(${MIR_INCLUDE_DIR})
     endif()
@@ -34,7 +40,7 @@ endif()
 
 set(SAMPLES_DATA_DIR ${SAMPLES_DATA_DIR} "${CMAKE_SOURCE_DIR}/API-Samples/data")
 set(SHADER_FILES ${SHADER_FILES} "")
-include_directories( ${SAMPLES_DATA_DIR} ${GLSLANG_SPIRV_INCLUDE_DIR} ${GLMINC_PREFIX})
+include_directories( ${SAMPLES_DATA_DIR} ${GLSLANG_SPIRV_INCLUDE_DIR} ${GLMINC_PREFIX} ${Vulkan_INCLUDE_DIR})
 
 # Additional includes for spirv-tools
 include_directories(${SPIRV_TOOLS_INCLUDE_DIR})
@@ -142,7 +148,7 @@ function(sampleWithSingleFile)
             SET(SETTINGS_GRADLE "${SETTINGS_GRADLE}include ':${SAMPLE_NAME}'\n")
         elseif(UNIX)
             add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
-            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${XCB_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD} ${SPIRV_TOOLS_LIBRARIES})
+            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${XCB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD} ${SPIRV_TOOLS_LIBRARIES})
         else()
             add_executable(${SAMPLE_NAME} WIN32 ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
             target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${VULKAN_LOADER} ${WINLIBS} ${SPIRV_TOOLS_LIBRARIES})
@@ -180,27 +186,28 @@ else()
     set (VULKAN_LOADER_NAME "${API_LOWERCASE}")
 endif()
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/layers")
+if(EXISTS "${PROJECT_SOURCE_DIR}/${V_LVL_RELATIVE_LOCATION}/loader")
     set (VULKAN_LOADER ${VULKAN_LOADER_NAME})
 else()
     find_library(VULKAN_LOADER NAMES ${VULKAN_LOADER_NAME}
-    HINTS "${CMAKE_SOURCE_DIR}/../${LIBSOURCE_DIR}" "${CMAKE_SOURCE_DIR}/../x86_64/lib" )
+    HINTS "${V_LVL_RELATIVE_LOCATION}/${LIBSOURCE_DIR}" "${V_LVL_RELATIVE_LOCATION}/x86_64/lib" )
 endif()
 
-set (LIBGLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libs)
+set (LIBGLM_INCLUDE_DIR ${V_LVL_RELATIVE_LOCATION}/libs)
 
 if(NOT WIN32 AND NOT ANDROID)
     if(SDK_INCLUDE_PATH)
-        include_directories(
-            ${XCB_INCLUDE_DIRS}
-            ${SDK_INCLUDE_PATH}
-        )
-    else()
-        include_directories(
-            ${XCB_INCLUDE_DIRS}
-        )
+        include_directories(${SDK_INCLUDE_PATH})
     endif()
-    link_libraries(${XCB_LIBRARIES} ${VULKAN_LOADER} m )
+    if (BUILD_WSI_XCB_SUPPORT)
+        include_directories(${XCB_INCLUDE_DIRS})
+        link_libraries(${XCB_LIBRARIES} m )
+    endif()
+    if (BUILD_WSI_WAYLAND_SUPPORT)
+        include_directories(${WAYLAND_CLIENT_INCLUDE_DIR})
+        link_libraries(${WAYLAND_CLIENT_LIBRARIES})
+    endif()
+    link_libraries(${VULKAN_LOADER} m ) 
 endif()
 if(WIN32)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_USE_MATH_DEFINES")
@@ -251,6 +258,7 @@ set (S_TARGETS
     05-init_swapchain 06-init_depth_buffer 07-init_uniform_buffer
     08-init_pipeline_layout 09-init_descriptor_set 10-init_render_pass
     11-init_shaders 12-init_frame_buffers 13-init_vertex_buffer 14-init_pipeline 15-draw_cube
+    16-vulkan_1_1
     enumerate_devices_adv init_texture multithreaded_command_buffers
     draw_textured_cube dynamic_uniform texel_buffer events
     instance_layer_properties instance_extension_properties
@@ -259,10 +267,14 @@ set (S_TARGETS
     copy_blit_image template separate_image_sampler input_attachment
     occlusion_query pipeline_cache pipeline_derivative push_descriptors
     immutable_sampler push_constants draw_subpasses secondary_command_buffer
-    spirv_assembly spirv_specialization memory_barriers)
+    spirv_assembly spirv_specialization memory_barriers validation_cache vulkan_1_1_flexible)
 sampleWithSingleFile()
 
 if (NOT ANDROID)
+foreach (sample ${S_TARGETS})
+    install(TARGETS ${sample} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endforeach(sample)
+
     add_subdirectory(utils)
 endif()
 
