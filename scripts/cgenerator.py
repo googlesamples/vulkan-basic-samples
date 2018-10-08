@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -i
 #
-# Copyright (c) 2013-2017 The Khronos Group Inc.
+# Copyright (c) 2013-2018 The Khronos Group Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -240,7 +240,16 @@ class COutputGenerator(OutputGenerator):
                 # Add extra newline after multi-line entries.
                 if '\n' in s:
                     s += '\n'
-                self.appendSection(category, s)
+                # This is a temporary workaround for internal issue #877,
+                # while we consider other approaches. The problem is that
+                # function pointer types can have dependencies on structures
+                # and vice-versa, so they can't be strictly separated into
+                # sections. The workaround is to define those types in the
+                # same section, in dependency order.
+                if (category == 'funcpointer'):
+                    self.appendSection('struct', s)
+                else:
+                    self.appendSection(category, s)
     #
     # Struct (e.g. C "struct" type) generation.
     # This is a special case of the <type> tag where the contents are
@@ -295,6 +304,13 @@ class COutputGenerator(OutputGenerator):
             # Should catch exceptions here for more complex constructs. Not yet.
             (numVal,strVal) = self.enumToValue(elem, True)
             name = elem.get('name')
+
+            # Check for duplicate enum values and raise an error if found.
+            for elem2 in groupElem.findall('enum'):
+                if (elem != elem2):
+                    (numVal2,strVal2) = self.enumToValue(elem2, True)
+                    if (numVal2 == numVal):
+                        raise UserWarning('Duplicate enum ' + name + ' = ' + elem2.get('name') + ' = ' + strVal)
 
             # Extension enumerants are only included if they are required
             if (self.isEnumRequired(elem)):

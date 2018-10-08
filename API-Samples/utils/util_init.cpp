@@ -29,6 +29,10 @@ samples "init" utility functions
 #include "util_init.hpp"
 #include "cube_data.h"
 
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+#include <linux/input.h>
+#endif
+
 using namespace std;
 
 /*
@@ -50,8 +54,8 @@ VkResult init_global_extension_properties(layer_properties &layer_props) {
             return VK_SUCCESS;
         }
 
-        layer_props.extensions.resize(instance_extension_count);
-        instance_extensions = layer_props.extensions.data();
+        layer_props.instance_extensions.resize(instance_extension_count);
+        instance_extensions = layer_props.instance_extensions.data();
         res = vkEnumerateInstanceExtensionProperties(layer_name, &instance_extension_count, instance_extensions);
     } while (res == VK_INCOMPLETE);
 
@@ -132,8 +136,8 @@ VkResult init_device_extension_properties(struct sample_info &info, layer_proper
             return VK_SUCCESS;
         }
 
-        layer_props.extensions.resize(device_extension_count);
-        device_extensions = layer_props.extensions.data();
+        layer_props.device_extensions.resize(device_extension_count);
+        device_extensions = layer_props.device_extensions.data();
         res = vkEnumerateDeviceExtensionProperties(info.gpus[0], layer_name, &device_extension_count, device_extensions);
     } while (res == VK_INCOMPLETE);
 
@@ -172,6 +176,8 @@ void init_instance_extension_names(struct sample_info &info) {
     info.instance_extension_names.push_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
     info.instance_extension_names.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    info.instance_extension_names.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #else
     info.instance_extension_names.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
@@ -252,6 +258,10 @@ VkResult init_enumerate_device(struct sample_info &info, uint32_t gpu_count) {
     /* This is as good a place as any to do this */
     vkGetPhysicalDeviceMemoryProperties(info.gpus[0], &info.memory_properties);
     vkGetPhysicalDeviceProperties(info.gpus[0], &info.gpu_props);
+    /* query device extensions for enabled layers */
+    for (auto& layer_props : info.instance_layer_properties) {
+      init_device_extension_properties(info, layer_props);
+    }
 
     return res;
 }
@@ -339,9 +349,36 @@ void destroy_debug_report_callback(struct sample_info &info) {
     }
 }
 
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+
+static void handle_ping(void *data, wl_shell_surface *shell_surface, uint32_t serial) {
+    wl_shell_surface_pong(shell_surface, serial);
+}
+
+static void handle_configure(void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {}
+
+static void handle_popup_done(void *data, wl_shell_surface *shell_surface) {}
+
+static const wl_shell_surface_listener shell_surface_listener = {handle_ping, handle_configure, handle_popup_done};
+
+static void registry_handle_global(void *data, wl_registry *registry, uint32_t id, const char *interface, uint32_t version) {
+    sample_info *info = (sample_info *)data;
+    // pickup wayland objects when they appear
+    if (strcmp(interface, "wl_compositor") == 0) {
+        info->compositor = (wl_compositor *)wl_registry_bind(registry, id, &wl_compositor_interface, 1);
+    } else if (strcmp(interface, "wl_shell") == 0) {
+        info->shell = (wl_shell *)wl_registry_bind(registry, id, &wl_shell_interface, 1);
+    }
+}
+
+static void registry_handle_global_remove(void *data, wl_registry *registry, uint32_t name) {}
+
+static const wl_registry_listener registry_listener = {registry_handle_global, registry_handle_global_remove};
+
+#endif
+
 void init_connection(struct sample_info &info) {
-#if !(defined(_WIN32) || defined(__ANDROID__) || defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-// Do nothing on Android, Apple, or Windows.
+#if defined(VK_USE_PLATFORM_XCB_KHR)
     const xcb_setup_t *setup;
     xcb_screen_iterator_t iter;
     int scr;
@@ -357,6 +394,20 @@ void init_connection(struct sample_info &info) {
     while (scr-- > 0) xcb_screen_next(&iter);
 
     info.screen = iter.data;
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    info.display = wl_display_connect(nullptr);
+
+    if (info.display == nullptr) {
+        printf(
+            "Cannot find a compatible Vulkan installable client driver "
+            "(ICD).\nExiting ...\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    info.registry = wl_display_get_registry(info.display);
+    wl_registry_add_listener(info.registry, &registry_listener, &info);
+    wl_display_dispatch(info.display);
 #endif
 }
 #ifdef _WIN32
@@ -449,7 +500,42 @@ void destroy_window(struct sample_info &info) {
 void init_window(struct sample_info &info) {}
 
 void destroy_window(struct sample_info &info) {}
+
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+
+void init_window(struct sample_info &info) {
+    assert(info.width > 0);
+    assert(info.height > 0);
+
+    info.window = wl_compositor_create_surface(info.compositor);
+    if (!info.window) {
+        printf("Can not create wayland_surface from compositor!\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    info.shell_surface = wl_shell_get_shell_surface(info.shell, info.window);
+    if (!info.shell_surface) {
+        printf("Can not get shell_surface from wayland_surface!\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    wl_shell_surface_add_listener(info.shell_surface, &shell_surface_listener, &info);
+    wl_shell_surface_set_toplevel(info.shell_surface);
+}
+
+void destroy_window(struct sample_info &info) {
+    wl_shell_surface_destroy(info.shell_surface);
+    wl_surface_destroy(info.window);
+    wl_shell_destroy(info.shell);
+    wl_compositor_destroy(info.compositor);
+    wl_registry_destroy(info.registry);
+    wl_display_disconnect(info.display);
+}
+
 #else
+
 void init_window(struct sample_info &info) {
     assert(info.width > 0);
     assert(info.height > 0);
@@ -644,6 +730,13 @@ void init_swapchain_extension(struct sample_info &info) {
     createInfo.flags = 0;
     createInfo.pView = info.window;
     res = vkCreateMacOSSurfaceMVK(info.inst, &createInfo, NULL, &info.surface);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    VkWaylandSurfaceCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext = NULL;
+    createInfo.display = info.display;
+    createInfo.surface = info.window;
+    res = vkCreateWaylandSurfaceKHR(info.inst, &createInfo, NULL, &info.surface);
 #else
     VkXcbSurfaceCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
@@ -1013,7 +1106,8 @@ void init_uniform_buffer(struct sample_info &info) {
     info.uniform_data.buffer_info.range = sizeof(info.MVP);
 }
 
-void init_descriptor_and_pipeline_layouts(struct sample_info &info, bool use_texture) {
+void init_descriptor_and_pipeline_layouts(struct sample_info &info, bool use_texture,
+                                          VkDescriptorSetLayoutCreateFlags descSetLayoutCreateFlags) {
     VkDescriptorSetLayoutBinding layout_bindings[2];
     layout_bindings[0].binding = 0;
     layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1034,6 +1128,7 @@ void init_descriptor_and_pipeline_layouts(struct sample_info &info, bool use_tex
     VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
     descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptor_layout.pNext = NULL;
+    descriptor_layout.flags = descSetLayoutCreateFlags;
     descriptor_layout.bindingCount = use_texture ? 2 : 1;
     descriptor_layout.pBindings = layout_bindings;
 
@@ -1064,7 +1159,7 @@ void init_renderpass(struct sample_info &info, bool include_depth, bool clear, V
     VkAttachmentDescription attachments[2];
     attachments[0].format = info.format;
     attachments[0].samples = NUM_SAMPLES;
-    attachments[0].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1075,7 +1170,7 @@ void init_renderpass(struct sample_info &info, bool include_depth, bool clear, V
     if (include_depth) {
         attachments[1].format = info.depth.format;
         attachments[1].samples = NUM_SAMPLES;
-        attachments[1].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachments[1].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
         attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1627,8 +1722,16 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
         filename.append(textureName);
 
     if (!read_ppm(filename.c_str(), texObj.tex_width, texObj.tex_height, 0, NULL)) {
-        std::cout << "Could not read texture file lunarg.ppm\n";
-        exit(-1);
+        std::cout << "Try relative path\n";
+        filename = "../../API-Samples/data/";
+        if (textureName == nullptr)
+            filename.append("lunarg.ppm");
+        else
+            filename.append(textureName);
+        if (!read_ppm(filename.c_str(), texObj.tex_width, texObj.tex_height, 0, NULL)) {
+            std::cout << "Could not read texture file " << filename;
+            exit(-1);
+        }
     }
 
     VkFormatProperties formatProps;

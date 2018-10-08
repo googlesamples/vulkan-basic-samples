@@ -23,8 +23,10 @@ VULKAN_SAMPLE_DESCRIPTION
 samples utility functions
 */
 
-#include <stdio.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <cstdlib>
 #include <iomanip>
 #include <fstream>
@@ -36,14 +38,16 @@ samples utility functions
 #include <unordered_map>
 
 // Header files.
+#include "string.h"
+#include "errno.h"
 #include <android_native_app_glue.h>
 #include "shaderc/shaderc.hpp"
 // Static variable that keeps ANativeWindow and asset manager instances.
 static android_app *Android_application = nullptr;
 #elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-#	include <MoltenGLSLToSPIRVConverter/GLSLToSPIRVConverter.h>
+#include <MoltenVKGLSLToSPIRVConverter/GLSLToSPIRVConverter.h>
 #else
-#	include "SPIRV/GlslangToSpv.h"
+#include "SPIRV/GlslangToSpv.h"
 #endif
 
 // For timestamp code (get_milliseconds)
@@ -275,40 +279,41 @@ void init_glslang() {}
 void finalize_glslang() {}
 
 bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std::vector<unsigned int> &spirv) {
+    MVKShaderStage shaderStage;
+    switch (shader_type) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            shaderStage = kMVKShaderStageVertex;
+            break;
+        case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+            shaderStage = kMVKShaderStageTessControl;
+            break;
+        case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+            shaderStage = kMVKShaderStageTessEval;
+            break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            shaderStage = kMVKShaderStageGeometry;
+            break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            shaderStage = kMVKShaderStageFragment;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            shaderStage = kMVKShaderStageCompute;
+            break;
+        default:
+            shaderStage = kMVKShaderStageAuto;
+            break;
+    }
 
- 	MLNShaderStage shaderStage;
- 	switch (shader_type) {
-		 		case VK_SHADER_STAGE_VERTEX_BIT:
-		 			shaderStage = kMLNShaderStageVertex;
-		 			break;
-		 		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-		 			shaderStage = kMLNShaderStageTessControl;
-		 			break;
-				case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-		 			shaderStage = kMLNShaderStageTessEval;
-		 			break;
-		 		case VK_SHADER_STAGE_GEOMETRY_BIT:
-		 			shaderStage = kMLNShaderStageGeometry;
-		 			break;
-		 		case VK_SHADER_STAGE_FRAGMENT_BIT:
-		 			shaderStage = kMLNShaderStageFragment;
-		 			break;
-		 		case VK_SHADER_STAGE_COMPUTE_BIT:
-		 			shaderStage = kMLNShaderStageCompute;
-		 			break;
-		 		default:
-		 			shaderStage = kMLNShaderStageAuto;
-		 			break;
-	 	}
+    mvk::GLSLToSPIRVConverter glslConverter;
+    glslConverter.setGLSL(pshader);
+    bool wasConverted = glslConverter.convert(shaderStage, false, false);
+    if (wasConverted) {
+        spirv = glslConverter.getSPIRV();
+    }
+    return wasConverted;
+}
 
- 	molten::GLSLToSPIRVConverter glslConverter;
- 	glslConverter.setGLSL(pshader);
- 	bool wasConverted = glslConverter.convert(shaderStage, false, false);
- 	if (wasConverted) { spirv = glslConverter.getSPIRV(); }
- 	return wasConverted;
- }
-
-#else   // not IOS OR macOS
+#else  // not IOS OR macOS
 
 #ifndef __ANDROID__
 void init_resources(TBuiltInResource &Resources) {

@@ -213,44 +213,48 @@ void Hologram::create_render_pass() {
 #ifdef MVK_USE_MOLTENVK_SHADER_CONVERTER
 
 #include <MoltenVK/vk_mvk_moltenvk.h>
-#include <MoltenGLSLToSPIRVConverter/GLSLConversion.h>
+#include <MoltenVKGLSLToSPIRVConverter/GLSLConversion.h>
 void Hologram::create_shader_modules() {
-
 #ifdef DEBUG
     // If debugging, enable MoltenVK debug mode to enable debugging capabilities,
     // including logging shader conversions from SPIR-V to Metal Shading Language.
-    MVKDeviceConfiguration mvkConfig;
-    vkGetMoltenVKDeviceConfigurationMVK(dev_, &mvkConfig );
+    // Be aware, changing the value of some of the members of MVKConfiguration must be
+    // performed before the device is created, in order for the change to take affect.
+    MVKConfiguration mvkConfig;
+    VkInstance vkInst = shell_->context().instance;
+    vkGetMoltenVKConfigurationMVK(VK_MVK_MOLTENVK_SPEC_VERSION, vkInst, &mvkConfig);
     mvkConfig.debugMode = true;
-    vkSetMoltenVKDeviceConfigurationMVK(dev_, &mvkConfig );
+    vkSetMoltenVKConfigurationMVK(VK_MVK_MOLTENVK_SPEC_VERSION, vkInst, &mvkConfig);
 #endif
 
-    char* spvLog;
+    char *spvLog;
     bool wasConverted;
 
-    const char* filename;
+    const char *filename;
     VkShaderModuleCreateInfo sh_info = {};
     sh_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
     // Vertex shader
     filename = use_push_constants_ ? "Hologram.push_constant.vert" : "Hologram.vert";
-    wasConverted = mlnConvertGLSLFileToSPIRV(filename, kMLNShaderStageVertex,
-                                             (uint32_t**)&sh_info.pCode, &sh_info.codeSize,
+    wasConverted = mvkConvertGLSLFileToSPIRV(filename, kMVKShaderStageVertex, (uint32_t **)&sh_info.pCode, &sh_info.codeSize,
                                              &spvLog, true, true);
-    if ( !wasConverted ) { printf("Could not convert GLSL to SPIRV:\n%s", spvLog); }
+    if (!wasConverted) {
+        printf("Could not convert GLSL to SPIRV:\n%s", spvLog);
+    }
     vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &vs_));
-    free((void*)sh_info.pCode);
-    free((void*)spvLog);
+    free((void *)sh_info.pCode);
+    free((void *)spvLog);
 
     // Fragment shader
     filename = "Hologram.frag";
-    wasConverted = mlnConvertGLSLFileToSPIRV(filename, kMLNShaderStageFragment,
-                                             (uint32_t**)&sh_info.pCode, &sh_info.codeSize,
+    wasConverted = mvkConvertGLSLFileToSPIRV(filename, kMVKShaderStageFragment, (uint32_t **)&sh_info.pCode, &sh_info.codeSize,
                                              &spvLog, true, true);
-    if ( !wasConverted ) { printf("Could not convert GLSL to SPIRV:\n%s", spvLog); }
+    if (!wasConverted) {
+        printf("Could not convert GLSL to SPIRV:\n%s", spvLog);
+    }
     vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &fs_));
-    free((void*)sh_info.pCode);
-    free((void*)spvLog);
+    free((void *)sh_info.pCode);
+    free((void *)spvLog);
 }
 
 #else
@@ -275,14 +279,14 @@ void Hologram::create_shader_modules() {
     vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &fs_));
 }
 
-#endif      // HG_USE_MOLTENVK_SHADER_CONVERTER
+#endif  // HG_USE_MOLTENVK_SHADER_CONVERTER
 
 void Hologram::create_descriptor_set_layout() {
     if (use_push_constants_) return;
 
     VkDescriptorSetLayoutBinding layout_binding = {};
     layout_binding.binding = 0;
-    layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     layout_binding.descriptorCount = 1;
     layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
@@ -478,7 +482,7 @@ void Hologram::create_command_buffers() {
 
 void Hologram::create_buffers() {
     // align object data to device limit
-    const VkDeviceSize &alignment = physical_dev_props_.limits.minStorageBufferOffsetAlignment;
+    const VkDeviceSize &alignment = physical_dev_props_.limits.minUniformBufferOffsetAlignment;
 
     aligned_object_data_size = sizeof(ShaderParamBlock);
     if (aligned_object_data_size % alignment) aligned_object_data_size += alignment - (aligned_object_data_size % alignment);
@@ -490,7 +494,7 @@ void Hologram::create_buffers() {
     VkBufferCreateInfo buf_info = {};
     buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buf_info.size = aligned_object_data_size * sim_.objects().size();
-    buf_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    buf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     for (auto &data : frame_data_) vk::assert_success(vk::CreateBuffer(dev_, &buf_info, nullptr, &data.buf));
@@ -532,7 +536,7 @@ void Hologram::create_buffer_memory() {
 
 void Hologram::create_descriptor_sets() {
     VkDescriptorPoolSize desc_pool_size = {};
-    desc_pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    desc_pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     assert(frame_data_.size() <= UINT32_MAX);
     desc_pool_size.descriptorCount = static_cast<uint32_t>(frame_data_.size());
 
@@ -576,7 +580,7 @@ void Hologram::create_descriptor_sets() {
         desc_write.dstBinding = 0;
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
-        desc_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+        desc_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         desc_write.pBufferInfo = &desc_bufs[i];
         desc_writes[i] = desc_write;
     }

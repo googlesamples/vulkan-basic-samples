@@ -20,11 +20,13 @@ from generator import write
 from cgenerator import CGeneratorOptions, COutputGenerator
 # LoaderAndValidationLayer Generator Modifications
 from threading_generator import  ThreadGeneratorOptions, ThreadOutputGenerator
-from parameter_validation_generator import ParamCheckerGeneratorOptions, ParamCheckerOutputGenerator
+from parameter_validation_generator import ParameterValidationGeneratorOptions, ParameterValidationOutputGenerator
 from unique_objects_generator import UniqueObjectsGeneratorOptions, UniqueObjectsOutputGenerator
+from object_tracker_generator import ObjectTrackerGeneratorOptions, ObjectTrackerOutputGenerator
 from dispatch_table_helper_generator import DispatchTableHelperOutputGenerator, DispatchTableHelperOutputGeneratorOptions
 from helper_file_generator import HelperFileOutputGenerator, HelperFileOutputGeneratorOptions
 from loader_extension_generator import LoaderExtensionOutputGenerator, LoaderExtensionGeneratorOptions
+from mock_icd_generator import MockICDGeneratorOptions, MockICDOutputGenerator
 
 # Simple timer functions
 startTime = None
@@ -122,10 +124,10 @@ def makeGenOpts(extensions = [], removeExtensions = [], protect = True, director
         ]
 
     # Options for parameter validation layer
-    genOpts['parameter_validation.h'] = [
-          ParamCheckerOutputGenerator,
-          ParamCheckerGeneratorOptions(
-            filename          = 'parameter_validation.h',
+    genOpts['parameter_validation.cpp'] = [
+          ParameterValidationOutputGenerator,
+          ParameterValidationGeneratorOptions(
+            filename          = 'parameter_validation.cpp',
             directory         = directory,
             apiname           = 'vulkan',
             profile           = None,
@@ -147,6 +149,27 @@ def makeGenOpts(extensions = [], removeExtensions = [], protect = True, director
           UniqueObjectsOutputGenerator,
           UniqueObjectsGeneratorOptions(
             filename          = 'unique_objects_wrappers.h',
+            directory         = directory,
+            apiname           = 'vulkan',
+            profile           = None,
+            versions          = allVersions,
+            emitversions      = allVersions,
+            defaultExtensions = 'vulkan',
+            addExtensions     = addExtensions,
+            removeExtensions  = removeExtensions,
+            prefixText        = prefixStrings + vkPrefixStrings,
+            protectFeature    = False,
+            apicall           = 'VKAPI_ATTR ',
+            apientry          = 'VKAPI_CALL ',
+            apientryp         = 'VKAPI_PTR *',
+            alignFuncParam    = 48)
+        ]
+
+    # Options for object_tracker layer
+    genOpts['object_tracker.cpp'] = [
+          ObjectTrackerOutputGenerator,
+          ObjectTrackerGeneratorOptions(
+            filename          = 'object_tracker.cpp',
             directory         = directory,
             apiname           = 'vulkan',
             profile           = None,
@@ -401,6 +424,71 @@ def makeGenOpts(extensions = [], removeExtensions = [], protect = True, director
             helper_file_type  = 'extension_helper_header')
         ]
 
+    # Helper file generator options for typemap_helper.h
+    genOpts['vk_typemap_helper.h'] = [
+          HelperFileOutputGenerator,
+          HelperFileOutputGeneratorOptions(
+            filename          = 'vk_typemap_helper.h',
+            directory         = directory,
+            apiname           = 'vulkan',
+            profile           = None,
+            versions          = allVersions,
+            emitversions      = allVersions,
+            defaultExtensions = 'vulkan',
+            addExtensions     = addExtensions,
+            removeExtensions  = removeExtensions,
+            prefixText        = prefixStrings + vkPrefixStrings,
+            protectFeature    = False,
+            apicall           = 'VKAPI_ATTR ',
+            apientry          = 'VKAPI_CALL ',
+            apientryp         = 'VKAPI_PTR *',
+            alignFuncParam    = 48,
+            helper_file_type  = 'typemap_helper_header')
+        ]
+
+    # Options for mock ICD header
+    genOpts['mock_icd.h'] = [
+          MockICDOutputGenerator,
+          MockICDGeneratorOptions(
+            filename          = 'mock_icd.h',
+            directory         = directory,
+            apiname           = 'vulkan',
+            profile           = None,
+            versions          = allVersions,
+            emitversions      = allVersions,
+            defaultExtensions = 'vulkan',
+            addExtensions     = addExtensions,
+            removeExtensions  = removeExtensions,
+            prefixText        = prefixStrings + vkPrefixStrings,
+            protectFeature    = False,
+            apicall           = 'VKAPI_ATTR ',
+            apientry          = 'VKAPI_CALL ',
+            apientryp         = 'VKAPI_PTR *',
+            alignFuncParam    = 48,
+            helper_file_type  = 'mock_icd_header')
+        ]
+
+    # Options for mock ICD cpp
+    genOpts['mock_icd.cpp'] = [
+          MockICDOutputGenerator,
+          MockICDGeneratorOptions(
+            filename          = 'mock_icd.cpp',
+            directory         = directory,
+            apiname           = 'vulkan',
+            profile           = None,
+            versions          = allVersions,
+            emitversions      = allVersions,
+            defaultExtensions = 'vulkan',
+            addExtensions     = addExtensions,
+            removeExtensions  = removeExtensions,
+            prefixText        = prefixStrings + vkPrefixStrings,
+            protectFeature    = False,
+            apicall           = 'VKAPI_ATTR ',
+            apientry          = 'VKAPI_CALL ',
+            apientryp         = 'VKAPI_PTR *',
+            alignFuncParam    = 48,
+            helper_file_type  = 'mock_icd_source')
+        ]
 
 # Generate a target based on the options in the matching genOpts{} object.
 # This is encapsulated in a function so it can be profiled and/or timed.
