@@ -50,7 +50,7 @@ Support
 -------
 
 - Google+ Community: https://plus.google.com/communities/<...>
-- Stack Overflow: http://stackoverflow.com/questions/tagged/<...>
+- Stack Overflow: https://stackoverflow.com/questions/tagged/vulkan
 
 If you've found an error in this sample, please file an issue:
 https://github.com/googlesamples/<...>/issues
