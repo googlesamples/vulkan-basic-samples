@@ -13,50 +13,56 @@
 // limitations under the License.
 
 // configure path to the source code generated on your machine
-include 'API-Samples/android/:01-init_instance'
-include 'API-Samples/android/:02-enumerate_devices'
-include 'API-Samples/android/:03-init_device'
-include 'API-Samples/android/:04-init_command_buffer'
-include 'API-Samples/android/:05-init_swapchain'
-include 'API-Samples/android/:06-init_depth_buffer'
-include 'API-Samples/android/:07-init_uniform_buffer'
-include 'API-Samples/android/:08-init_pipeline_layout'
-include 'API-Samples/android/:09-init_descriptor_set'
-include 'API-Samples/android/:10-init_render_pass'
-include 'API-Samples/android/:11-init_shaders'
-include 'API-Samples/android/:12-init_frame_buffers'
-include 'API-Samples/android/:13-init_vertex_buffer'
-include 'API-Samples/android/:14-init_pipeline'
-include 'API-Samples/android/:15-draw_cube'
-include 'API-Samples/android/:16-vulkan_1_1'
-include 'API-Samples/android/:enumerate_devices_adv'
-include 'API-Samples/android/:init_texture'
-include 'API-Samples/android/:multithreaded_command_buffers'
-include 'API-Samples/android/:draw_textured_cube'
-include 'API-Samples/android/:dynamic_uniform'
-include 'API-Samples/android/:texel_buffer'
-include 'API-Samples/android/:events'
-include 'API-Samples/android/:instance_layer_properties'
-include 'API-Samples/android/:instance_extension_properties'
-include 'API-Samples/android/:instance_layer_extension_properties'
-include 'API-Samples/android/:create_debug_report_callback'
-include 'API-Samples/android/:enable_validation_with_callback'
-include 'API-Samples/android/:multiple_sets'
-include 'API-Samples/android/:copy_blit_image'
-include 'API-Samples/android/:template'
-include 'API-Samples/android/:separate_image_sampler'
-include 'API-Samples/android/:input_attachment'
-include 'API-Samples/android/:occlusion_query'
-include 'API-Samples/android/:pipeline_cache'
-include 'API-Samples/android/:pipeline_derivative'
-include 'API-Samples/android/:push_descriptors'
-include 'API-Samples/android/:immutable_sampler'
-include 'API-Samples/android/:push_constants'
-include 'API-Samples/android/:draw_subpasses'
-include 'API-Samples/android/:secondary_command_buffer'
-include 'API-Samples/android/:spirv_assembly'
-include 'API-Samples/android/:spirv_specialization'
-include 'API-Samples/android/:memory_barriers'
-include 'API-Samples/android/:validation_cache'
-include 'API-Samples/android/:vulkan_1_1_flexible'
+[
+    '01-init_instance',
+    '02-enumerate_devices',
+    '03-init_device',
+    '04-init_command_buffer',
+    '05-init_swapchain',
+    '06-init_depth_buffer',
+    '07-init_uniform_buffer',
+    '08-init_pipeline_layout',
+    '09-init_descriptor_set',
+    '10-init_render_pass',
+    '11-init_shaders',
+    '12-init_frame_buffers',
+    '13-init_vertex_buffer',
+    '14-init_pipeline',
+    '15-draw_cube',
+    '16-vulkan_1_1',
+    'enumerate_devices_adv',
+    'init_texture',
+    'multithreaded_command_buffers',
+    'draw_textured_cube',
+    'dynamic_uniform',
+    'texel_buffer',
+    'events',
+    'instance_layer_properties',
+    'instance_extension_properties',
+    'instance_layer_extension_properties',
+    'create_debug_report_callback',
+    'enable_validation_with_callback',
+    'multiple_sets',
+    'copy_blit_image',
+    'template',
+    'separate_image_sampler',
+    'input_attachment',
+    'occlusion_query',
+    'pipeline_cache',
+    'pipeline_derivative',
+    'push_descriptors',
+    'immutable_sampler',
+    'push_constants',
+    'draw_subpasses',
+    'secondary_command_buffer',
+    'spirv_assembly',
+    'spirv_specialization',
+    'memory_barriers',
+    'validation_cache',
+    'vulkan_1_1_flexible'
+].each {
+    include ":${it}"
+    project(":${it}").projectDir = new File("API-Samples/android/${it}")
+}
+
 
