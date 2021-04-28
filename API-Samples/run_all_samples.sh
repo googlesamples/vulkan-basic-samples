@@ -28,7 +28,7 @@ while test $# -gt 0; do
 done
 
 if ! test -z $COMPAREIMAGES; then
-    if ! test -d 'golden'; then 
+    if ! test -d 'golden'; then
         { echo >&2 "I require golden images but no golden directory.  Aborting."; exit 1; }
     fi
     type compare >/dev/null 2>&1 || { echo >&2 "I require ImageMagick compare but it's not installed.  Aborting."; exit 1; }
@@ -55,18 +55,22 @@ do
    # run the built sample; need to remove .cpp from name
    RNAME=./${BNAME%.cpp}
    $RNAME $ARGS
+   rv=$?
    echo ""
-   if ! test -z $COMPAREIMAGES; then
-       GOLDNAME="golden/${RNAME}.ppm"
+   if [ $rv -ne 0 ]; then
+        >&2 echo -e "${RED}${RNAME} FAIL${NOCOLOR} : Return Value $rv"
+	    RETVAL=1
+   elif ! test -z $COMPAREIMAGES; then
+        GOLDNAME="golden/${RNAME}.ppm"
         if test -f $GOLDNAME; then
            THISNAME="${RNAME}.ppm"
-	   CMDRES=`compare -metric AE -fuzz 3% $THISNAME $GOLDNAME ${RNAME}-diff.ppm 2>&1` 
+	       CMDRES=`compare -metric AE -fuzz 3% $THISNAME $GOLDNAME ${RNAME}-diff.ppm 2>&1`
            if [ $CMDRES == "0" ]; then
                >&2 echo -e "${GREEN}${RNAME} PASS${NOCOLOR}"
            else
                >&2 echo -e "${RED}${RNAME} FAIL${NOCOLOR} : pixel error count is ${CMDRES}"
-               $SAVEIMAGES="true"
-	       RETVAL=1
+               SAVEIMAGES="true"
+	           RETVAL=1
            fi
         else
             if test -f ${RNAME}.ppm; then
@@ -76,9 +80,8 @@ do
         fi
     fi
     if test -z $SAVEIMAGES; then
-        `rm ${RNAME}.ppm > /dev/null 2>&1`
-	`rm ${RNAME}-diff.ppm > /dev/null 2>&1`
+        rm ${RNAME}.ppm > /dev/null 2>&1
+	    rm ${RNAME}-diff.ppm > /dev/null 2>&1
     fi
 done
 exit $RETVAL
-

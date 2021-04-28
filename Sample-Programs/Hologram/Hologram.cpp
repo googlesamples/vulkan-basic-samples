@@ -181,22 +181,15 @@ void Hologram::create_render_pass() {
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &attachment_ref;
 
-    std::array<VkSubpassDependency, 2> subpass_deps;
-    subpass_deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-    subpass_deps[0].dstSubpass = 0;
-    subpass_deps[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    subpass_deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpass_deps[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    subpass_deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    subpass_deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    subpass_deps[1].srcSubpass = 0;
-    subpass_deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-    subpass_deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpass_deps[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    subpass_deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    subpass_deps[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    subpass_deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    // Subpass dependency to wait for wsi image acquired semaphore before starting layout transition
+    VkSubpassDependency subpass_dependency = {};
+    subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpass_dependency.dstSubpass = 0;
+    subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.srcAccessMask = 0;
+    subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    subpass_dependency.dependencyFlags = 0;
 
     VkRenderPassCreateInfo render_pass_info = {};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -204,60 +197,11 @@ void Hologram::create_render_pass() {
     render_pass_info.pAttachments = &attachment;
     render_pass_info.subpassCount = 1;
     render_pass_info.pSubpasses = &subpass;
-    render_pass_info.dependencyCount = (uint32_t)subpass_deps.size();
-    render_pass_info.pDependencies = subpass_deps.data();
+    render_pass_info.dependencyCount = 1;
+    render_pass_info.pDependencies = &subpass_dependency;
 
     vk::assert_success(vk::CreateRenderPass(dev_, &render_pass_info, nullptr, &render_pass_));
 }
-
-#ifdef MVK_USE_MOLTENVK_SHADER_CONVERTER
-
-#include <MoltenVK/vk_mvk_moltenvk.h>
-#include <MoltenVKGLSLToSPIRVConverter/GLSLConversion.h>
-void Hologram::create_shader_modules() {
-#ifdef DEBUG
-    // If debugging, enable MoltenVK debug mode to enable debugging capabilities,
-    // including logging shader conversions from SPIR-V to Metal Shading Language.
-    // Be aware, changing the value of some of the members of MVKConfiguration must be
-    // performed before the device is created, in order for the change to take affect.
-    MVKConfiguration mvkConfig;
-    VkInstance vkInst = shell_->context().instance;
-    vkGetMoltenVKConfigurationMVK(VK_MVK_MOLTENVK_SPEC_VERSION, vkInst, &mvkConfig);
-    mvkConfig.debugMode = true;
-    vkSetMoltenVKConfigurationMVK(VK_MVK_MOLTENVK_SPEC_VERSION, vkInst, &mvkConfig);
-#endif
-
-    char *spvLog;
-    bool wasConverted;
-
-    const char *filename;
-    VkShaderModuleCreateInfo sh_info = {};
-    sh_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-
-    // Vertex shader
-    filename = use_push_constants_ ? "Hologram.push_constant.vert" : "Hologram.vert";
-    wasConverted = mvkConvertGLSLFileToSPIRV(filename, kMVKShaderStageVertex, (uint32_t **)&sh_info.pCode, &sh_info.codeSize,
-                                             &spvLog, true, true);
-    if (!wasConverted) {
-        printf("Could not convert GLSL to SPIRV:\n%s", spvLog);
-    }
-    vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &vs_));
-    free((void *)sh_info.pCode);
-    free((void *)spvLog);
-
-    // Fragment shader
-    filename = "Hologram.frag";
-    wasConverted = mvkConvertGLSLFileToSPIRV(filename, kMVKShaderStageFragment, (uint32_t **)&sh_info.pCode, &sh_info.codeSize,
-                                             &spvLog, true, true);
-    if (!wasConverted) {
-        printf("Could not convert GLSL to SPIRV:\n%s", spvLog);
-    }
-    vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &fs_));
-    free((void *)sh_info.pCode);
-    free((void *)spvLog);
-}
-
-#else
 
 void Hologram::create_shader_modules() {
     VkShaderModuleCreateInfo sh_info = {};
@@ -278,8 +222,6 @@ void Hologram::create_shader_modules() {
     sh_info.pCode = Hologram_frag;
     vk::assert_success(vk::CreateShaderModule(dev_, &sh_info, nullptr, &fs_));
 }
-
-#endif  // HG_USE_MOLTENVK_SHADER_CONVERTER
 
 void Hologram::create_descriptor_set_layout() {
     if (use_push_constants_) return;

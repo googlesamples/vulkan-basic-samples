@@ -63,21 +63,9 @@ int sample_main(int argc, char *argv[]) {
 
     /* VULKAN_KEY_START */
 
-    /* Use standard_validation meta layer that enables all
-     * recommended validation layers
-     */
-    info.instance_layer_names.push_back("VK_LAYER_LUNARG_standard_validation");
+    /* Enable validation*/
+    info.instance_layer_names.push_back("VK_LAYER_KHRONOS_validation");
     if (!demo_check_layers(info.instance_layer_properties, info.instance_layer_names)) {
-        /* If standard validation is not present, search instead for the
-         * individual layers that make it up, in the correct order.
-         */
-        info.instance_layer_names.clear();
-        info.instance_layer_names.push_back("VK_LAYER_GOOGLE_threading");
-        info.instance_layer_names.push_back("VK_LAYER_LUNARG_parameter_validation");
-        info.instance_layer_names.push_back("VK_LAYER_LUNARG_object_tracker");
-        info.instance_layer_names.push_back("VK_LAYER_LUNARG_core_validation");
-        info.instance_layer_names.push_back("VK_LAYER_GOOGLE_unique_objects");
-
         if (!demo_check_layers(info.instance_layer_properties, info.instance_layer_names)) {
             std::cout << "Set the environment variable VK_LAYER_PATH to point to the location of your layers" << std::endl;
             exit(1);
@@ -121,7 +109,7 @@ int sample_main(int argc, char *argv[]) {
     vkGetPhysicalDeviceQueueFamilyProperties(info.gpus[0], &info.queue_family_count, info.queue_props.data());
     assert(info.queue_family_count >= 1);
 
-    bool found = false;
+    bool U_ASSERT_ONLY found = false;
     for (unsigned int i = 0; i < info.queue_family_count; i++) {
         if (info.queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             queue_info.queueFamilyIndex = i;

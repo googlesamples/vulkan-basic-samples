@@ -1,79 +1,69 @@
-Vulkan API samples
-==================
+# Vulkan Samples
+  - This repository is a collection of Vulkan C++ sample applications.
+  - Run the following script to obtain a short description of all or a 
+    specific sample:
+    `$ API-Samples/get-short-descripts.sh`
+  - Run the following script to obtain a more detailed description of all
+    samples with a long description set:
+    `$ API-Samples/get-descripts.sh`
 
-Demonstrates basic usages of Vulkan APIs.
+## CI Build Status
+| Platform | Build Status |
+|:--------:|:------------:|
+| Linux/Android | [![Build Status](https://travis-ci.org/LunarG/VulkanSamples.svg?branch=master)](https://travis-ci.org/LunarG/VulkanSamples) |
+| Windows | [![Build status](https://ci.appveyor.com/api/projects/status/c5l2y9nk7wve9xvu/branch/master?svg=true)](https://ci.appveyor.com/project/karl-lunarg/vulkansamples/branch/master) |
 
-Introduction
-------------
-The project includes series of samples demonstrating a basic usage of Vulkan APIs.
-This repository is a replication of [LunarG sample kit](https://github.com/LunarG/VulkanSamples), refer to [wiki](https://github.com/googlesamples/vulkan-basic-samples/wiki) for more background.
+## Structure
 
-Getting Started
----------------
-Refer to the [Getting Started guide](https://developer.android.com/ndk/guides/graphics/getting-started.html).
+Vulkan Samples
+ - The Vulkan Samples repo is a set of source and data files in a specific
+    directory hierarchy:
+      - API-Samples - Samples that demonstrate the use of various aspects of the
+        Vulkan API
+      - Vulkan Tutorial - Steps you through the process of creating a simple Vulkan application, learning the basics along the way. This [Vulkan Tutorial link](https://vulkan.lunarg.com/doc/sdk/latest/windows/tutorial/html/index.html) allows you to view the Vulkan Tutorial on LunarXchange as well. 
+      - Sample-Programs - Samples that are more functional and go deeper than simple API use.
+	  
+## Sample progression
+  - In general, the samples are not interrelated, but there is a progression
+      among some of the samples that lead to drawing a cube.  Start with the
+      instance sample, then enumerate-adv, device, initcommandbuffer, initswapchain, initdepthbuffer,
+      inituniformbuffer, descriptor_pipeline_layouts, initrenderpass, initshaders,
+      initframebuffers, vertexbuffer, allocdescriptorsets, initpipeline, and they
+      culminate in the drawcube sample.  Each sample uses utility routines from
+      the code from previous samples to get to the point to show something new.
+      The drawtexturedcube sample takes all of the drawcube code and adds texturing.
 
-Screenshots
------------
-![screenshot](image/screen.png)
+## Contributing
+  Refer to the README.contrib file for specific info regarding contributing to
+  the Vulkan samples creation effort.
 
+## Contact Information
+* [Tony Barbour](mailto:tony@lunarg.com)
+* [Mark Lobodzinski](mailto:mark@lunarg.com)
 
-## Prerequisites
-- [Android Studio](https://developer.android.com/studio/index.html): 3.2.0 or higher.
-- [Android SDK](https://developer.android.com/studio/index.html): N Developer Preview or higher.
-- [Android NDK](https://developer.android.com/ndk/downloads/index.html): r17+.
+## Information for Developing or Contributing:
 
-## Sample Import
-To import the samples, follow the steps below:
+Please see the [CONTRIBUTING.md](README-contrib.md) file in this repository for more details.
 
-### Step 1: Build shaderc in the NDK
-From the command-prompt, navigate to the `${ndk_root}/sources/third_party/shaderc` directory.
-Then, run the following command:
+## How to Build and Run
 
-~~~
-../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=[c++_static|c++_shared] APP_ABI=[armeabi-v7a|arm64-v8a|x86|x86_64|all] libshaderc_combined -j16
-~~~
+[BUILD.md](BUILD.md)
+Includes directions for building all components as well as running validation tests and demo applications.
 
-For this project, the `APP_STL` value is set to use the `c++_static`, as all of the project samples are using it.
+## Version Tagging Scheme
 
-### Step 2: Import the samples into Android Studio 
-You can use one of the following methods to install this project in Android Studio:
+Updates to the `LunarG-VulkanSamples` repository which correspond to a new Vulkan specification release are tagged using the following format: `v<`_`version`_`>` (e.g., `v1.1.96`).
 
-* Import Android Code Sample: Choose **Import an Android code sample**, then search for and select **Vulkan API samples**. Android Studio downloads the sample code directly from Github.
-* Import Project: Use this method only if you've already cloned this project from GitHub into a local repo. From Android Studio, choose **Open an existing Android Studio project** and select the `build.gradle` file located at the root of your local repo directory.
+**Note**: Marked version releases have undergone thorough testing but do not imply the same quality level as SDK tags. SDK tags follow the `sdk-<`_`version`_`>.<`_`patch`_`>` format (e.g., `sdk-1.1.92.0`).
 
-The samples are configured to build armeabi-v7a; to build other android ARCH,
-change abiFilters in $your-project/build.gradle.
+This scheme was adopted following the 1.1.96 Vulkan specification release.
 
-Note:  This project includes 40+ samples and may take time to load on some platforms, such as Windows OS.
+## License
+This work is released as open source under a Apache-style license.  See LICENSE.txt for full license.
 
-Support
--------
+See COPYRIGHT.txt for a full list of licenses used in this repository.
 
-- Google+ Community: https://plus.google.com/communities/<...>
-- Stack Overflow: https://stackoverflow.com/questions/tagged/vulkan
-
-If you've found an error in this sample, please file an issue:
-https://github.com/googlesamples/<...>/issues
-
-Patches are encouraged, and may be submitted by forking this project and
-submitting a pull request through GitHub.
-
-License
--------
-
-Copyright 2016 Google, Inc.
-
-Licensed to the Apache Software Foundation (ASF) under one or more contributor
-license agreements.  See the NOTICE file distributed with this work for
-additional information regarding copyright ownership.  The ASF licenses this
-file to you under the Apache License, Version 2.0 (the "License"); you may not
-use this file except in compliance with the License.  You may obtain a copy of
-the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-License for the specific language governing permissions and limitations under
-the License.
+## Acknowledgements
+While this project has been developed primarily by LunarG, Inc., there are many other
+companies and individuals making this possible: Valve Corporation, funding
+project development; Google providing significant contributions to the samples.

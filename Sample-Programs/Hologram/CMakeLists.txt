@@ -13,8 +13,8 @@ endmacro()
 
 macro(glsl_to_spirv src)
     add_custom_command(OUTPUT ${src}.h
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/glsl-to-spirv ${CMAKE_CURRENT_SOURCE_DIR}/${src} ${src}.h ${GLSLANG_VALIDATOR}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/glsl-to-spirv ${CMAKE_CURRENT_SOURCE_DIR}/${src} ${GLSLANG_VALIDATOR}
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${src} ${src}.h ${GLSLANG_VALIDATOR} false
+        DEPENDS ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${src} ${GLSLANG_VALIDATOR}
         )
 endmacro()
 
@@ -96,6 +96,13 @@ endif()
 add_executable(Hologram ${sources})
 target_compile_definitions(Hologram ${definitions})
 target_include_directories(Hologram ${includes})
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    INCLUDE(CheckLibraryExists)
+    CHECK_LIBRARY_EXISTS("rt" clock_gettime "" NEED_RT)
+    if (NEED_RT)
+        set(libraries ${libraries} rt)
+    endif()
+endif()
 target_link_libraries(Hologram ${libraries})
 
 install(TARGETS Hologram RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

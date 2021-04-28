@@ -108,7 +108,12 @@ struct texture_object {
     VkImage image;
     VkImageLayout imageLayout;
 
-    VkDeviceMemory mem;
+    bool needs_staging;
+    VkBuffer buffer;
+    VkDeviceSize buffer_size;
+
+    VkDeviceMemory image_memory;
+    VkDeviceMemory buffer_memory;
     VkImageView view;
     int32_t tex_width, tex_height;
 };
@@ -142,8 +147,8 @@ struct sample_info {
     HINSTANCE connection;        // hInstance - Windows Instance
     char name[APP_NAME_STR_LEN]; // Name to put on the window/icon
     HWND window;                 // hWnd - window handle
-#elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-	void* window;
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
+    void *caMetalLayer;
 #elif defined(__ANDROID__)
     PFN_vkCreateAndroidSurfaceKHR fpCreateAndroidSurfaceKHR;
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
@@ -212,8 +217,6 @@ struct sample_info {
     struct {
         VkDescriptorImageInfo image_info;
     } texture_data;
-    VkDeviceMemory stagingMemory;
-    VkImage stagingImage;
 
     struct {
         VkBuffer buf;

@@ -1,9 +1,9 @@
 /*
  * Vulkan Samples
  *
- * Copyright (C) 2015-2016 Valve Corporation
- * Copyright (C) 2015-2016 LunarG, Inc.
- * Copyright (C) 2015-2016 Google, Inc.
+ * Copyright (C) 2015-2020 Valve Corporation
+ * Copyright (C) 2015-2020 LunarG, Inc.
+ * Copyright (C) 2015-2020 Google, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -172,10 +172,8 @@ void init_instance_extension_names(struct sample_info &info) {
     info.instance_extension_names.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #elif defined(_WIN32)
     info.instance_extension_names.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#elif defined(VK_USE_PLATFORM_IOS_MVK)
-    info.instance_extension_names.push_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-    info.instance_extension_names.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
+    info.instance_extension_names.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
     info.instance_extension_names.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #else
@@ -259,8 +257,8 @@ VkResult init_enumerate_device(struct sample_info &info, uint32_t gpu_count) {
     vkGetPhysicalDeviceMemoryProperties(info.gpus[0], &info.memory_properties);
     vkGetPhysicalDeviceProperties(info.gpus[0], &info.gpu_props);
     /* query device extensions for enabled layers */
-    for (auto& layer_props : info.instance_layer_properties) {
-      init_device_extension_properties(info, layer_props);
+    for (auto &layer_props : info.instance_layer_properties) {
+        init_device_extension_properties(info, layer_props);
     }
 
     return res;
@@ -282,7 +280,7 @@ void init_queue_family_index(struct sample_info &info) {
     vkGetPhysicalDeviceQueueFamilyProperties(info.gpus[0], &info.queue_family_count, info.queue_props.data());
     assert(info.queue_family_count >= 1);
 
-    bool found = false;
+    bool U_ASSERT_ONLY found = false;
     for (unsigned int i = 0; i < info.queue_family_count; i++) {
         if (info.queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             info.graphics_queue_family_index = i;
@@ -411,7 +409,8 @@ void init_connection(struct sample_info &info) {
 #endif
 }
 #ifdef _WIN32
-static void run(struct sample_info *info) { /* Placeholder for samples that want to show dynamic content */ }
+static void run(struct sample_info *info) { /* Placeholder for samples that want to show dynamic content */
+}
 
 // MS-Windows event handling function:
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -487,13 +486,11 @@ void destroy_window(struct sample_info &info) {
     DestroyWindow(info.window);
 }
 
-#elif defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK)
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
 
 // iOS & macOS: init_window() implemented externally to allow access to Objective-C components
 
-void destroy_window(struct sample_info &info) {
-	info.window = NULL;
-}
+void destroy_window(struct sample_info &info) { info.caMetalLayer = NULL; }
 
 #elif defined(__ANDROID__)
 // Android implementation.
@@ -597,11 +594,17 @@ void init_depth_buffer(struct sample_info &info) {
     VkResult U_ASSERT_ONLY res;
     bool U_ASSERT_ONLY pass;
     VkImageCreateInfo image_info = {};
+    VkFormatProperties props;
 
     /* allow custom depth formats */
 #ifdef __ANDROID__
-    // Depth format needs to be VK_FORMAT_D24_UNORM_S8_UINT on Android.
-    info.depth.format = VK_FORMAT_D24_UNORM_S8_UINT;
+    // Depth format needs to be VK_FORMAT_D24_UNORM_S8_UINT on Android (if available).
+    vkGetPhysicalDeviceFormatProperties(info.gpus[0], VK_FORMAT_D24_UNORM_S8_UINT, &props);
+    if ((props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) ||
+        (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
+        info.depth.format = VK_FORMAT_D24_UNORM_S8_UINT;
+    else
+        info.depth.format = VK_FORMAT_D16_UNORM;
 #elif defined(VK_USE_PLATFORM_IOS_MVK)
     if (info.depth.format == VK_FORMAT_UNDEFINED) info.depth.format = VK_FORMAT_D32_SFLOAT;
 #else
@@ -609,7 +612,6 @@ void init_depth_buffer(struct sample_info &info) {
 #endif
 
     const VkFormat depth_format = info.depth.format;
-    VkFormatProperties props;
     vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
     if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
         image_info.tiling = VK_IMAGE_TILING_LINEAR;
@@ -694,6 +696,11 @@ void init_depth_buffer(struct sample_info &info) {
     assert(res == VK_SUCCESS);
 }
 
+/* Use this surface format if it's available.  This ensures that generated
+ * images are similar on different devices and with different drivers.
+ */
+#define PREFERRED_SURFACE_FORMAT VK_FORMAT_B8G8R8A8_UNORM
+
 void init_swapchain_extension(struct sample_info &info) {
     /* DEPENDS on init_connection() and init_window() */
 
@@ -716,20 +723,13 @@ void init_swapchain_extension(struct sample_info &info) {
     createInfo.flags = 0;
     createInfo.window = AndroidGetApplicationWindow();
     res = info.fpCreateAndroidSurfaceKHR(info.inst, &createInfo, nullptr, &info.surface);
-#elif defined(VK_USE_PLATFORM_IOS_MVK)
-    VkIOSSurfaceCreateInfoMVK createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK;
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
+    VkMetalSurfaceCreateInfoEXT createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     createInfo.pNext = NULL;
     createInfo.flags = 0;
-    createInfo.pView = info.window;
-    res = vkCreateIOSSurfaceMVK(info.inst, &createInfo, NULL, &info.surface);
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-    VkMacOSSurfaceCreateInfoMVK createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
-    createInfo.pNext = NULL;
-    createInfo.flags = 0;
-    createInfo.pView = info.window;
-    res = vkCreateMacOSSurfaceMVK(info.inst, &createInfo, NULL, &info.surface);
+    createInfo.pLayer = info.caMetalLayer;
+    res = vkCreateMetalSurfaceEXT(info.inst, &createInfo, NULL, &info.surface);
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
     VkWaylandSurfaceCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
@@ -794,15 +794,19 @@ void init_swapchain_extension(struct sample_info &info) {
     VkSurfaceFormatKHR *surfFormats = (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
     res = vkGetPhysicalDeviceSurfaceFormatsKHR(info.gpus[0], info.surface, &formatCount, surfFormats);
     assert(res == VK_SUCCESS);
-    // If the format list includes just one entry of VK_FORMAT_UNDEFINED,
-    // the surface has no preferred format.  Otherwise, at least one
-    // supported format will be returned.
-    if (formatCount == 1 && surfFormats[0].format == VK_FORMAT_UNDEFINED) {
-        info.format = VK_FORMAT_B8G8R8A8_UNORM;
-    } else {
-        assert(formatCount >= 1);
-        info.format = surfFormats[0].format;
+
+    // If the device supports our preferred surface format, use it.
+    // Otherwise, use whatever the device's first reported surface
+    // format is.
+    assert(formatCount >= 1);
+    info.format = surfFormats[0].format;
+    for (size_t i = 0; i < formatCount; ++i) {
+        if (surfFormats[i].format == PREFERRED_SURFACE_FORMAT) {
+            info.format = PREFERRED_SURFACE_FORMAT;
+            break;
+        }
     }
+
     free(surfFormats);
 }
 
@@ -955,7 +959,7 @@ void init_swap_chain(struct sample_info &info, VkImageUsageFlags usageFlags) {
         VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
         VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
     };
-    for (uint32_t i = 0; i < sizeof(compositeAlphaFlags); i++) {
+    for (uint32_t i = 0; i < sizeof(compositeAlphaFlags) / sizeof(compositeAlphaFlags[0]); i++) {
         if (surfCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i]) {
             compositeAlpha = compositeAlphaFlags[i];
             break;
@@ -1053,7 +1057,7 @@ void init_uniform_buffer(struct sample_info &info) {
     info.View = glm::lookAt(glm::vec3(-5, 3, -10),  // Camera is at (-5,3,-10), in World Space
                             glm::vec3(0, 0, 0),     // and looks at the origin
                             glm::vec3(0, -1, 0)     // Head is up (set to 0,-1,0 to look upside-down)
-                            );
+    );
     info.Model = glm::mat4(1.0f);
     // Vulkan clip space has inverted Y and half Z.
     info.Clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f);
@@ -1151,8 +1155,11 @@ void init_descriptor_and_pipeline_layouts(struct sample_info &info, bool use_tex
     assert(res == VK_SUCCESS);
 }
 
-void init_renderpass(struct sample_info &info, bool include_depth, bool clear, VkImageLayout finalLayout) {
+void init_renderpass(struct sample_info &info, bool include_depth, bool clear, VkImageLayout finalLayout,
+                     VkImageLayout initialLayout) {
     /* DEPENDS on init_swap_chain() and init_depth_buffer() */
+
+    assert(clear || (initialLayout != VK_IMAGE_LAYOUT_UNDEFINED));
 
     VkResult U_ASSERT_ONLY res;
     /* Need attachments for render target and depth buffer */
@@ -1163,16 +1170,16 @@ void init_renderpass(struct sample_info &info, bool include_depth, bool clear, V
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].initialLayout = initialLayout;
     attachments[0].finalLayout = finalLayout;
     attachments[0].flags = 0;
 
     if (include_depth) {
         attachments[1].format = info.depth.format;
         attachments[1].samples = NUM_SAMPLES;
-        attachments[1].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachments[1].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -1199,6 +1206,16 @@ void init_renderpass(struct sample_info &info, bool include_depth, bool clear, V
     subpass.preserveAttachmentCount = 0;
     subpass.pPreserveAttachments = NULL;
 
+    // Subpass dependency to wait for wsi image acquired semaphore before starting layout transition
+    VkSubpassDependency subpass_dependency = {};
+    subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpass_dependency.dstSubpass = 0;
+    subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpass_dependency.srcAccessMask = 0;
+    subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    subpass_dependency.dependencyFlags = 0;
+
     VkRenderPassCreateInfo rp_info = {};
     rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     rp_info.pNext = NULL;
@@ -1206,8 +1223,8 @@ void init_renderpass(struct sample_info &info, bool include_depth, bool clear, V
     rp_info.pAttachments = attachments;
     rp_info.subpassCount = 1;
     rp_info.pSubpasses = &subpass;
-    rp_info.dependencyCount = 0;
-    rp_info.pDependencies = NULL;
+    rp_info.dependencyCount = 1;
+    rp_info.pDependencies = &subpass_dependency;
 
     res = vkCreateRenderPass(info.device, &rp_info, NULL, &info.render_pass);
     assert(res == VK_SUCCESS);
@@ -1463,59 +1480,32 @@ void init_descriptor_set(struct sample_info &info, bool use_texture) {
     vkUpdateDescriptorSets(info.device, use_texture ? 2 : 1, writes, 0, NULL);
 }
 
-void init_shaders(struct sample_info &info, const char *vertShaderText, const char *fragShaderText) {
+void init_shaders(struct sample_info &info, const VkShaderModuleCreateInfo *vertShaderCI,
+                  const VkShaderModuleCreateInfo *fragShaderCI) {
     VkResult U_ASSERT_ONLY res;
-    bool U_ASSERT_ONLY retVal;
 
-    // If no shaders were submitted, just return
-    if (!(vertShaderText || fragShaderText)) return;
-
-    init_glslang();
-    VkShaderModuleCreateInfo moduleCreateInfo;
-
-    if (vertShaderText) {
-        std::vector<unsigned int> vtx_spv;
+    if (vertShaderCI) {
         info.shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         info.shaderStages[0].pNext = NULL;
         info.shaderStages[0].pSpecializationInfo = NULL;
         info.shaderStages[0].flags = 0;
         info.shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
         info.shaderStages[0].pName = "main";
-
-        retVal = GLSLtoSPV(VK_SHADER_STAGE_VERTEX_BIT, vertShaderText, vtx_spv);
-        assert(retVal);
-
-        moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleCreateInfo.pNext = NULL;
-        moduleCreateInfo.flags = 0;
-        moduleCreateInfo.codeSize = vtx_spv.size() * sizeof(unsigned int);
-        moduleCreateInfo.pCode = vtx_spv.data();
-        res = vkCreateShaderModule(info.device, &moduleCreateInfo, NULL, &info.shaderStages[0].module);
+        res = vkCreateShaderModule(info.device, vertShaderCI, NULL, &info.shaderStages[0].module);
         assert(res == VK_SUCCESS);
     }
 
-    if (fragShaderText) {
-        std::vector<unsigned int> frag_spv;
+    if (fragShaderCI) {
+        std::vector<unsigned int> vtx_spv;
         info.shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         info.shaderStages[1].pNext = NULL;
         info.shaderStages[1].pSpecializationInfo = NULL;
         info.shaderStages[1].flags = 0;
         info.shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         info.shaderStages[1].pName = "main";
-
-        retVal = GLSLtoSPV(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderText, frag_spv);
-        assert(retVal);
-
-        moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleCreateInfo.pNext = NULL;
-        moduleCreateInfo.flags = 0;
-        moduleCreateInfo.codeSize = frag_spv.size() * sizeof(unsigned int);
-        moduleCreateInfo.pCode = frag_spv.data();
-        res = vkCreateShaderModule(info.device, &moduleCreateInfo, NULL, &info.shaderStages[1].module);
+        res = vkCreateShaderModule(info.device, fragShaderCI, NULL, &info.shaderStages[1].module);
         assert(res == VK_SUCCESS);
     }
-
-    finalize_glslang();
 }
 
 void init_pipeline_cache(struct sample_info &info) {
@@ -1534,7 +1524,7 @@ void init_pipeline_cache(struct sample_info &info) {
 void init_pipeline(struct sample_info &info, VkBool32 include_depth, VkBool32 include_vi) {
     VkResult U_ASSERT_ONLY res;
 
-    VkDynamicState dynamicStateEnables[VK_DYNAMIC_STATE_RANGE_SIZE];
+    VkDynamicState dynamicStateEnables[2];  // Viewport + Scissor
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     memset(dynamicStateEnables, 0, sizeof dynamicStateEnables);
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1709,6 +1699,45 @@ void init_sampler(struct sample_info &info, VkSampler &sampler) {
     res = vkCreateSampler(info.device, &samplerCreateInfo, NULL, &sampler);
     assert(res == VK_SUCCESS);
 }
+void init_buffer(struct sample_info &info, texture_object &texObj) {
+    VkResult U_ASSERT_ONLY res;
+    bool U_ASSERT_ONLY pass;
+
+    VkBufferCreateInfo buffer_create_info = {};
+    buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_create_info.pNext = NULL;
+    buffer_create_info.flags = 0;
+    buffer_create_info.size = texObj.tex_width * texObj.tex_height * 4;
+    buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    buffer_create_info.queueFamilyIndexCount = 0;
+    buffer_create_info.pQueueFamilyIndices = NULL;
+    res = vkCreateBuffer(info.device, &buffer_create_info, NULL, &texObj.buffer);
+    assert(res == VK_SUCCESS);
+
+    VkMemoryAllocateInfo mem_alloc = {};
+    mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    mem_alloc.pNext = NULL;
+    mem_alloc.allocationSize = 0;
+    mem_alloc.memoryTypeIndex = 0;
+
+    VkMemoryRequirements mem_reqs;
+    vkGetBufferMemoryRequirements(info.device, texObj.buffer, &mem_reqs);
+    mem_alloc.allocationSize = mem_reqs.size;
+    texObj.buffer_size = mem_reqs.size;
+
+    VkFlags requirements = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    pass = memory_type_from_properties(info, mem_reqs.memoryTypeBits, requirements, &mem_alloc.memoryTypeIndex);
+    assert(pass && "No mappable, coherent memory");
+
+    /* allocate memory */
+    res = vkAllocateMemory(info.device, &mem_alloc, NULL, &(texObj.buffer_memory));
+    assert(res == VK_SUCCESS);
+
+    /* bind memory */
+    res = vkBindBufferMemory(info.device, texObj.buffer, texObj.buffer_memory, 0);
+    assert(res == VK_SUCCESS);
+}
 
 void init_image(struct sample_info &info, texture_object &texObj, const char *textureName, VkImageUsageFlags extraUsages,
                 VkFormatFeatureFlags extraFeatures) {
@@ -1738,12 +1767,17 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
     vkGetPhysicalDeviceFormatProperties(info.gpus[0], VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
 
     /* See if we can use a linear tiled image for a texture, if not, we will
-     * need a staging image for the texture data */
+     * need a staging buffer for the texture data */
     VkFormatFeatureFlags allFeatures = (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | extraFeatures);
-    bool needStaging = ((formatProps.linearTilingFeatures & allFeatures) != allFeatures) ? true : false;
+    texObj.needs_staging = ((formatProps.linearTilingFeatures & allFeatures) != allFeatures);
 
-    if (needStaging) {
+    if (texObj.needs_staging) {
         assert((formatProps.optimalTilingFeatures & allFeatures) == allFeatures);
+        init_buffer(info, texObj);
+        extraUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    } else {
+        texObj.buffer = VK_NULL_HANDLE;
+        texObj.buffer_memory = VK_NULL_HANDLE;
     }
 
     VkImageCreateInfo image_create_info = {};
@@ -1757,10 +1791,9 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
     image_create_info.mipLevels = 1;
     image_create_info.arrayLayers = 1;
     image_create_info.samples = NUM_SAMPLES;
-    image_create_info.tiling = VK_IMAGE_TILING_LINEAR;
-    image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-    image_create_info.usage =
-        needStaging ? (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | extraUsages) : (VK_IMAGE_USAGE_SAMPLED_BIT | extraUsages);
+    image_create_info.tiling = texObj.needs_staging ? VK_IMAGE_TILING_OPTIMAL : VK_IMAGE_TILING_LINEAR;
+    image_create_info.initialLayout = texObj.needs_staging ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_PREINITIALIZED;
+    image_create_info.usage = (VK_IMAGE_USAGE_SAMPLED_BIT | extraUsages);
     image_create_info.queueFamilyIndexCount = 0;
     image_create_info.pQueueFamilyIndices = NULL;
     image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -1772,33 +1805,25 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
     mem_alloc.allocationSize = 0;
     mem_alloc.memoryTypeIndex = 0;
 
-    VkImage mappableImage;
-    VkDeviceMemory mappableMemory;
-
     VkMemoryRequirements mem_reqs;
 
-    /* Create a mappable image.  It will be the texture if linear images are ok
-     * to be textures or it will be the staging image if they are not. */
-    res = vkCreateImage(info.device, &image_create_info, NULL, &mappableImage);
+    res = vkCreateImage(info.device, &image_create_info, NULL, &texObj.image);
     assert(res == VK_SUCCESS);
 
-    vkGetImageMemoryRequirements(info.device, mappableImage, &mem_reqs);
-    assert(res == VK_SUCCESS);
+    vkGetImageMemoryRequirements(info.device, texObj.image, &mem_reqs);
 
     mem_alloc.allocationSize = mem_reqs.size;
 
-    /* Find the memory type that is host mappable */
-    pass = memory_type_from_properties(info, mem_reqs.memoryTypeBits,
-                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                       &mem_alloc.memoryTypeIndex);
-    assert(pass && "No mappable, coherent memory");
+    VkFlags requirements = texObj.needs_staging ? 0 : (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    pass = memory_type_from_properties(info, mem_reqs.memoryTypeBits, requirements, &mem_alloc.memoryTypeIndex);
+    assert(pass);
 
     /* allocate memory */
-    res = vkAllocateMemory(info.device, &mem_alloc, NULL, &(mappableMemory));
+    res = vkAllocateMemory(info.device, &mem_alloc, NULL, &(texObj.image_memory));
     assert(res == VK_SUCCESS);
 
     /* bind memory */
-    res = vkBindImageMemory(info.device, mappableImage, mappableMemory, 0);
+    res = vkBindImageMemory(info.device, texObj.image, texObj.image_memory, 0);
     assert(res == VK_SUCCESS);
 
     res = vkEndCommandBuffer(info.cmd);
@@ -1831,11 +1856,12 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
     subres.mipLevel = 0;
     subres.arrayLayer = 0;
 
-    VkSubresourceLayout layout;
+    VkSubresourceLayout layout = {};
     void *data;
-
-    /* Get the subresource layout so we know what the row pitch is */
-    vkGetImageSubresourceLayout(info.device, mappableImage, &subres, &layout);
+    if (!texObj.needs_staging) {
+        /* Get the subresource layout so we know what the row pitch is */
+        vkGetImageSubresourceLayout(info.device, texObj.image, &subres, &layout);
+    }
 
     /* Make sure command buffer is finished before mapping */
     do {
@@ -1845,16 +1871,21 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
 
     vkDestroyFence(info.device, cmdFence, NULL);
 
-    res = vkMapMemory(info.device, mappableMemory, 0, mem_reqs.size, 0, &data);
+    if (texObj.needs_staging) {
+        res = vkMapMemory(info.device, texObj.buffer_memory, 0, texObj.buffer_size, 0, &data);
+    } else {
+        res = vkMapMemory(info.device, texObj.image_memory, 0, mem_reqs.size, 0, &data);
+    }
     assert(res == VK_SUCCESS);
 
     /* Read the ppm file into the mappable image's memory */
-    if (!read_ppm(filename.c_str(), texObj.tex_width, texObj.tex_height, layout.rowPitch, (unsigned char *)data)) {
+    if (!read_ppm(filename.c_str(), texObj.tex_width, texObj.tex_height,
+                  texObj.needs_staging ? (texObj.tex_width * 4) : layout.rowPitch, (unsigned char *)data)) {
         std::cout << "Could not load texture file lunarg.ppm\n";
         exit(-1);
     }
 
-    vkUnmapMemory(info.device, mappableMemory);
+    vkUnmapMemory(info.device, texObj.needs_staging ? texObj.buffer_memory : texObj.image_memory);
 
     VkCommandBufferBeginInfo cmd_buf_info = {};
     cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1866,85 +1897,40 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
     res = vkBeginCommandBuffer(info.cmd, &cmd_buf_info);
     assert(res == VK_SUCCESS);
 
-    if (!needStaging) {
+    if (!texObj.needs_staging) {
         /* If we can use the linear tiled image as a texture, just do it */
-        texObj.image = mappableImage;
-        texObj.mem = mappableMemory;
         texObj.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         set_image_layout(info, texObj.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_PREINITIALIZED, texObj.imageLayout,
                          VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-        /* No staging resources to free later */
-        info.stagingImage = VK_NULL_HANDLE;
-        info.stagingMemory = VK_NULL_HANDLE;
     } else {
-        /* The mappable image cannot be our texture, so create an optimally
-         * tiled image and blit to it */
-        image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        image_create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-        res = vkCreateImage(info.device, &image_create_info, NULL, &texObj.image);
-        assert(res == VK_SUCCESS);
-
-        vkGetImageMemoryRequirements(info.device, texObj.image, &mem_reqs);
-
-        mem_alloc.allocationSize = mem_reqs.size;
-
-        /* Find memory type - dont specify any mapping requirements */
-        pass = memory_type_from_properties(info, mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                           &mem_alloc.memoryTypeIndex);
-        assert(pass);
-
-        /* allocate memory */
-        res = vkAllocateMemory(info.device, &mem_alloc, NULL, &texObj.mem);
-        assert(res == VK_SUCCESS);
-
-        /* bind memory */
-        res = vkBindImageMemory(info.device, texObj.image, texObj.mem, 0);
-        assert(res == VK_SUCCESS);
-
-        /* Since we're going to blit from the mappable image, set its layout to
-         * SOURCE_OPTIMAL. Side effect is that this will create info.cmd */
-        set_image_layout(info, mappableImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_PREINITIALIZED,
-                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-
         /* Since we're going to blit to the texture image, set its layout to
          * DESTINATION_OPTIMAL */
         set_image_layout(info, texObj.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-        VkImageCopy copy_region;
-        copy_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copy_region.srcSubresource.mipLevel = 0;
-        copy_region.srcSubresource.baseArrayLayer = 0;
-        copy_region.srcSubresource.layerCount = 1;
-        copy_region.srcOffset.x = 0;
-        copy_region.srcOffset.y = 0;
-        copy_region.srcOffset.z = 0;
-        copy_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copy_region.dstSubresource.mipLevel = 0;
-        copy_region.dstSubresource.baseArrayLayer = 0;
-        copy_region.dstSubresource.layerCount = 1;
-        copy_region.dstOffset.x = 0;
-        copy_region.dstOffset.y = 0;
-        copy_region.dstOffset.z = 0;
-        copy_region.extent.width = texObj.tex_width;
-        copy_region.extent.height = texObj.tex_height;
-        copy_region.extent.depth = 1;
+        VkBufferImageCopy copy_region;
+        copy_region.bufferOffset = 0;
+        copy_region.bufferRowLength = texObj.tex_width;
+        copy_region.bufferImageHeight = texObj.tex_height;
+        copy_region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copy_region.imageSubresource.mipLevel = 0;
+        copy_region.imageSubresource.baseArrayLayer = 0;
+        copy_region.imageSubresource.layerCount = 1;
+        copy_region.imageOffset.x = 0;
+        copy_region.imageOffset.y = 0;
+        copy_region.imageOffset.z = 0;
+        copy_region.imageExtent.width = texObj.tex_width;
+        copy_region.imageExtent.height = texObj.tex_height;
+        copy_region.imageExtent.depth = 1;
 
         /* Put the copy command into the command buffer */
-        vkCmdCopyImage(info.cmd, mappableImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texObj.image,
-                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+        vkCmdCopyBufferToImage(info.cmd, texObj.buffer, texObj.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
         /* Set the layout for the texture image from DESTINATION_OPTIMAL to
          * SHADER_READ_ONLY */
         texObj.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         set_image_layout(info, texObj.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texObj.imageLayout,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-
-        /* Remember staging resources to free later */
-        info.stagingImage = mappableImage;
-        info.stagingMemory = mappableMemory;
     }
 
     VkImageViewCreateInfo view_info = {};
@@ -2135,12 +2121,8 @@ void destroy_textures(struct sample_info &info) {
         vkDestroySampler(info.device, info.textures[i].sampler, NULL);
         vkDestroyImageView(info.device, info.textures[i].view, NULL);
         vkDestroyImage(info.device, info.textures[i].image, NULL);
-        vkFreeMemory(info.device, info.textures[i].mem, NULL);
-    }
-    if (info.stagingImage) {
-        vkDestroyImage(info.device, info.stagingImage, NULL);
-    }
-    if (info.stagingMemory) {
-        vkFreeMemory(info.device, info.stagingMemory, NULL);
+        vkFreeMemory(info.device, info.textures[i].image_memory, NULL);
+        vkDestroyBuffer(info.device, info.textures[i].buffer, NULL);
+        vkFreeMemory(info.device, info.textures[i].buffer_memory, NULL);
     }
 }

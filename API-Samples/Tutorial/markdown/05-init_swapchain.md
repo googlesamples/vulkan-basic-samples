@@ -25,7 +25,7 @@ WSI (Window System Integration) extensions.
 You can find the documentation for these extensions in a Vulkan
 specification document that was prepared with the WSI content enabled.
 The Vulkan specification found on the
-<a href="https://vulkan.lunarg.com" target="_blank">LunarG LunarXchange website</a>
+<a href="https://vulkan.lunarg.com" target="_blank">Vulkan SDK download website</a>
 and in the <a href="https://www.khronos.org/registry/vulkan/" target="_blank">Khronos Vulkan Registry</a>
 is built with this content.
 
@@ -33,7 +33,6 @@ The WSI extensions contain support for various platforms.
 The extensions are activated for a particular platform by defining:
 
 * `VK_USE_PLATFORM_ANDROID_KHR` - Android
-* `VK_USE_PLATFORM_MIR_KHR` - Mir
 * `VK_USE_PLATFORM_WAYLAND_KHR` - Wayland
 * `VK_USE_PLATFORM_WIN32_KHR` - Microsoft Windows
 * `VK_USE_PLATFORM_XCB_KHR` - X Window System, using the XCB library
@@ -102,7 +101,7 @@ as instance extensions.
 to load a swapchain extension as a device extension.
 
 You can learn more about instance and device extensions by visiting the
-documentation section on the <a href="https://vulkan.lunarg.com" target="_blank">LunarG LunarXchange website</a>.
+documentation section on the <a href="https://vulkan.lunarg.com" target="_blank">Vulkan SDK download site</a>.
 
 ## Queue Family and Present
 

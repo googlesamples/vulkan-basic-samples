@@ -1,8 +1,8 @@
 /*
  * Vulkan Samples
  *
- * Copyright (C) 2015-2016 Valve Corporation
- * Copyright (C) 2015-2016 LunarG, Inc.
+ * Copyright (C) 2015-2020 Valve Corporation
+ * Copyright (C) 2015-2020 LunarG, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ Use memory barriers to update texture
 #include <assert.h>
 #include <string.h>
 #include <cstdlib>
-#include <cube_data.h>
+#include "cube_data.h"
 
 // Using OpenGL based glm, so Y is upside down between OpenGL and Vulkan
 
@@ -57,36 +57,10 @@ static const VertexUV vb_Data[] = {
 
 #define DEPTH_PRESENT false
 
-/* For this sample, we'll start with GLSL so the shader function is plain */
-/* and then use the glslang GLSLtoSPV utility to convert it to SPIR-V for */
-/* the driver.  We do this for clarity rather than using pre-compiled     */
-/* SPIR-V                                                                 */
-
-const char *vertShaderText =
-    "#version 400\n"
-    "#extension GL_ARB_separate_shader_objects : enable\n"
-    "#extension GL_ARB_shading_language_420pack : enable\n"
-    "layout (std140, binding = 0) uniform buf {\n"
-    "        mat4 mvp;\n"
-    "} ubuf;\n"
-    "layout (location = 0) in vec4 pos;\n"
-    "layout (location = 1) in vec2 inTexCoords;\n"
-    "layout (location = 0) out vec2 texcoord;\n"
-    "void main() {\n"
-    "   texcoord = inTexCoords;\n"
-    "   gl_Position = ubuf.mvp * pos;\n"
-    "}\n";
-
-const char *fragShaderText =
-    "#version 400\n"
-    "#extension GL_ARB_separate_shader_objects : enable\n"
-    "#extension GL_ARB_shading_language_420pack : enable\n"
-    "layout (binding = 1) uniform sampler2D tex;\n"
-    "layout (location = 0) in vec2 texcoord;\n"
-    "layout (location = 0) out vec4 outColor;\n"
-    "void main() {\n"
-    "   outColor = textureLod(tex, texcoord, 0.0);\n"
-    "}\n";
+/* We've setup cmake to process memory_barriers.vert and memory_barriers.frag             */
+/* files containing the glsl shader code for this sample.  The generate-spirv script uses */
+/* glslangValidator to compile the glsl into spir-v and places the spir-v into a struct   */
+/* into a generated header file                                                           */
 
 int sample_main(int argc, char **argv) {
     VkResult U_ASSERT_ONLY res;
@@ -100,10 +74,8 @@ int sample_main(int argc, char **argv) {
     info.instance_extension_names.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif __ANDROID__
     info.instance_extension_names.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
-#elif defined(VK_USE_PLATFORM_IOS_MVK)
-    info.instance_extension_names.push_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-    info.instance_extension_names.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
+    info.instance_extension_names.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
     info.instance_extension_names.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #else
@@ -128,8 +100,18 @@ int sample_main(int argc, char **argv) {
     init_texture(info, nullptr, VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_FORMAT_FEATURE_BLIT_DST_BIT);
     init_uniform_buffer(info);
     init_descriptor_and_pipeline_layouts(info, true);
-    init_renderpass(info, DEPTH_PRESENT, false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    init_shaders(info, vertShaderText, fragShaderText);
+    init_renderpass(info, DEPTH_PRESENT, false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+#include "memory_barriers.vert.h"
+#include "memory_barriers.frag.h"
+    VkShaderModuleCreateInfo vert_info = {};
+    VkShaderModuleCreateInfo frag_info = {};
+    vert_info.sType = frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    vert_info.codeSize = sizeof(memory_barriers_vert);
+    vert_info.pCode = memory_barriers_vert;
+    frag_info.codeSize = sizeof(memory_barriers_frag);
+    frag_info.pCode = memory_barriers_frag;
+    init_shaders(info, &vert_info, &frag_info);
+
     init_framebuffers(info, DEPTH_PRESENT);
     init_vertex_buffer(info, vb_Data, sizeof(vb_Data), sizeof(vb_Data[0]), true);
     init_descriptor_pool(info, true);
@@ -174,6 +156,10 @@ int sample_main(int argc, char **argv) {
     // we will use the same renderpass multiple times in the frame
     vkCmdClearColorImage(info.cmd, info.buffers[info.current_buffer].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, clear_color, 1,
                          &srRange);
+
+    set_image_layout(info, info.buffers[info.current_buffer].image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
     VkRenderPassBeginInfo rp_begin;
     rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

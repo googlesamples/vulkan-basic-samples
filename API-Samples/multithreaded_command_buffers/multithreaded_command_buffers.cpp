@@ -1,8 +1,8 @@
 /*
  * Vulkan Samples
  *
- * Copyright (C) 2015-2016 Valve Corporation
- * Copyright (C) 2015-2016 LunarG, Inc.
+ * Copyright (C) 2015-2020 Valve Corporation
+ * Copyright (C) 2015-2020 LunarG, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,32 +54,10 @@ VkCommandPool threadCmdPools[3];
 
 static void *per_thread_code(void *arg);
 
-/* For this sample, we'll start with GLSL so the shader function is plain */
-/* and then use the glslang GLSLtoSPV utility to convert it to SPIR-V for */
-/* the driver.  We do this for clarity rather than using pre-compiled     */
-/* SPIR-V                                                                 */
-
-static const char *vertShaderText =
-    "#version 400\n"
-    "#extension GL_ARB_separate_shader_objects : enable\n"
-    "#extension GL_ARB_shading_language_420pack : enable\n"
-    "layout (location = 0) in vec4 pos;\n"
-    "layout (location = 1) in vec4 inColor;\n"
-    "layout (location = 0) out vec4 outColor;\n"
-    "void main() {\n"
-    "    outColor = inColor;\n"
-    "    gl_Position = pos;\n"
-    "}\n";
-
-static const char *fragShaderText =
-    "#version 400\n"
-    "#extension GL_ARB_separate_shader_objects : enable\n"
-    "#extension GL_ARB_shading_language_420pack : enable\n"
-    "layout (location = 0) in vec4 color;\n"
-    "layout (location = 0) out vec4 outColor;\n"
-    "void main() {\n"
-    "   outColor = color;\n"
-    "}\n";
+/* We've setup cmake to process multithreaded_command_buffers.vert and multithreaded_command_buffers.frag  */
+/* files containing the glsl shader code for this sample.  The generate-spirv script uses                  */
+/* glslangValidator to compile the glsl into spir-v and places the spir-v into a struct                    */
+/* into a generated header file                                                                            */
 
 static struct sample_info info = {};
 int sample_main(int argc, char *argv[]) {
@@ -134,12 +112,23 @@ int sample_main(int argc, char *argv[]) {
 
     res = vkCreatePipelineLayout(info.device, &pPipelineLayoutCreateInfo, NULL, &info.pipeline_layout);
     assert(res == VK_SUCCESS);
-    init_renderpass(info, depthPresent, false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);  // Can't clear in
-                                                                                           // renderpass
-                                                                                           // load because
-                                                                                           // we re-use
-                                                                                           // pipeline
-    init_shaders(info, vertShaderText, fragShaderText);
+    init_renderpass(info, depthPresent, false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);  // Can't clear in
+                                                                // renderpass
+                                                                // load because
+                                                                // we re-use
+                                                                // pipeline
+#include "multithreaded_command_buffers.vert.h"
+#include "multithreaded_command_buffers.frag.h"
+    VkShaderModuleCreateInfo vert_info = {};
+    VkShaderModuleCreateInfo frag_info = {};
+    vert_info.sType = frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    vert_info.codeSize = sizeof(multithreaded_command_buffers_vert);
+    vert_info.pCode = multithreaded_command_buffers_vert;
+    frag_info.codeSize = sizeof(multithreaded_command_buffers_frag);
+    frag_info.pCode = multithreaded_command_buffers_frag;
+    init_shaders(info, &vert_info, &frag_info);
+
     init_framebuffers(info, depthPresent);
 
     /* The binding and attributes should be the same for all 3 vertex buffers,
@@ -358,7 +347,7 @@ static void *per_thread_code(void *arg) {
     alloc_info.memoryTypeIndex = 0;
 
     alloc_info.allocationSize = mem_reqs.size;
-    bool pass;
+    bool U_ASSERT_ONLY pass;
     pass = memory_type_from_properties(info, mem_reqs.memoryTypeBits,
                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                        &alloc_info.memoryTypeIndex);

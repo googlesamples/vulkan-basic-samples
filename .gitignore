@@ -6,6 +6,7 @@ build
 *.iml
 local.properties
 .externalNativeBuild
+.cxx
 
 # facilitating the upstream sync for gradle files
 API-Samples/android/build.gradle

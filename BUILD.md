@@ -28,7 +28,6 @@ Vulkan Samples
         Vulkan API
       - Vulkan Tutorial - Steps you through the process of creating a simple Vulkan application, learning the basics along the way. This [Vulkan Tutorial link](https://vulkan.lunarg.com/doc/sdk/latest/windows/tutorial/html/index.html) allows you to view the Vulkan Tutorial on LunarXchange as well. 
       - Sample-Programs - Samples that are more functional and go deeper than simple API use.
-      - Layer-Samples - Samples that are implemented as layers.  The Overlay layer sample is deprecated and does not build.
 
 ## Repository Set-Up
 
@@ -69,18 +68,10 @@ the samples. You must also take note of the headers' install
 directory and pass it on the CMake command line for building this repository,
 as described below.
 
-#### glslang
-
-This repository has a required dependency on the
-[glslang repository](https://github.com/KhronosGroup/glslang).
-The glslang repository is required because it contains components that are
-required to build the samples. You must clone the glslang repository
-and build its `install` target. Follow the build instructions in the glslang
-[README.md](https://github.com/KhronosGroup/glslang/blob/master/README.md)
-file. Ensure that the `update_glslang_sources.py` script has been run as part
-of building glslang. You must also take note of the glslang install directory
-and pass it on the CMake command line for building this repository, as
-described below.
+#### glslangValidator and spirv-as
+The samples use glslangValidator to compile glsl shaders and spirv-as to assemble
+spirv assembly code.  CMake is set up to fetch these executables if they are not 
+found in your PATH.
 
 #### Vulkan-Loader
 
@@ -99,21 +90,40 @@ it on the CMake command line for building this repository, as described below.
 
 ### Building Dependent Repositories with Known-Good Revisions
 
-There is a Python utility script, `scripts/update_deps.py`, that you can use
-to gather and build the dependent repositories mentioned above. This program
-also uses information stored in the `scripts/known-good.json` file to checkout
-dependent repository revisions that are known to be compatible with the
-revision of this repository that you currently have checked out.
+There is a Python utility script, `scripts/update_deps.py`, that you can use to
+gather and build the dependent repositories mentioned above. This script uses
+information stored in the `scripts/known_good.json` file to check out dependent
+repository revisions that are known to be compatible with the revision of this
+repository that you currently have checked out. As such, this script is useful
+as a quick-start tool for common use cases and default configurations.
 
-Here is a usage example for this repository:
+For all platforms, start with:
 
     git clone https://github.com/LunarG/VulkanSamples.git
     cd VulkanSamples
     mkdir build
     cd build
+
+For 64-bit Linux, continue with:
+
     ../scripts/update_deps.py
     cmake -C helper.cmake ..
     cmake --build .
+
+For 64-bit Windows, continue with:
+
+    ..\scripts\update_deps.py --arch x64
+    cmake -A x64 -C helper.cmake ..
+    cmake --build .
+
+For 32-bit Windows, continue with:
+
+    ..\scripts\update_deps.py --arch Win32
+    cmake -A Win32 -C helper.cmake ..
+    cmake --build .
+
+Please see the more detailed build information later in this file if you have
+specific requirements for configuring and building these components.
 
 #### Notes
 
@@ -153,7 +163,6 @@ on/off options currently supported by this repository:
 | Option | Platform | Default | Description |
 | ------ | -------- | ------- | ----------- |
 | BUILD_API_SAMPLES | All | `ON` | Controls whether or not the basic api samples are built. |
-| BUILD_SAMPLE_LAYERS | All | `OFF` | Controls whether or not the Overlay sample layer is built.  The Overlay layer is currently deprcated and will not build. |
 
 These variables should be set using the `-D` option when invoking CMake to
 generate the native platform files.
@@ -166,12 +175,11 @@ generate the native platform files.
   - Any Personal Computer version supported by Microsoft
 - Microsoft [Visual Studio](https://www.visualstudio.com/)
   - Versions
-    - [2013 (update 4)](https://www.visualstudio.com/vs/older-downloads/)
     - [2015](https://www.visualstudio.com/vs/older-downloads/)
     - [2017](https://www.visualstudio.com/vs/downloads/)
   - The Community Edition of each of the above versions is sufficient, as
     well as any more capable edition.
-- [CMake](http://www.cmake.org/download/) (Version 2.8.11 or better)
+- [CMake 3.10.2](https://cmake.org/files/v3.10/cmake-3.10.2-win64-x64.zip) is recommended.
   - Use the installer option to add CMake to the system PATH
 - Git Client Support
   - [Git for Windows](http://git-scm.com/download/win) is a popular solution
@@ -224,14 +232,7 @@ install directory must be provided. This can be done by setting the
 `VULKAN_LOADER_INSTALL_DIR` environment variable or by setting the
 `VULKAN_LOADER_INSTALL_DIR` CMake variable with the `-D` CMake option. In
 either case, the variable should point to the installation directory of a
-Vulkan-Headers repository built with the install target.
-
-When generating the project files, the absolute path to a glslang install
-directory must be provided. This can be done by setting the
-`GLSLANG_INSTALL_DIR` environment variable or by setting the
-`GLSLANG_INSTALL_DIR` CMake variable with the `-D` CMake option. In either
-case, the variable should point to the installation directory of a glslang
-repository built with the install target.
+Vulkan-Loader repository built with the install target.
 
 Note that if you don't want to use specific revisions of HEADERS, LOADER, 
 and GLSLANG, the update_deps.py script mentioned above will handle all 
@@ -262,20 +263,24 @@ in the build folder. You may select "Debug" or "Release" from the Solution
 Configurations drop-down list. Start a build by selecting the Build->Build
 Solution menu item.
 
+[CMake 3.10.2](https://cmake.org/files/v3.10/cmake-3.10.2-win64-x64.zip) is recommended.
+
 ## Building On Linux
 
 ### Linux Build Requirements
 
 This repository has been built and tested on the two most recent Ubuntu LTS
-versions. Currently, the oldest supported version is Ubuntu 14.04, meaning
-that the minimum supported compiler versions are GCC 4.8.2 and Clang 3.4,
+versions. Currently, the oldest supported version is Ubuntu 16.04, meaning
+that the minimum officially supported C++11 compiler version is GCC 5.4.0,
 although earlier versions may work. It should be straightforward to adapt this
 repository to other Linux distributions.
 
 #### Required Package List
 
-    sudo apt-get install git cmake build-essential libx11-xcb-dev \
-        libxkbcommon-dev libmirclient-dev libwayland-dev libxrandr-dev
+    sudo apt-get install git build-essential libx11-xcb-dev \
+        libxkbcommon-dev libwayland-dev libxrandr-dev
+
+[CMake 3.10.2](https://cmake.org/files/v3.10/cmake-3.10.2-Linux-x86_64.tar.gz) is recommended.
 
 ### Linux Build
 
@@ -294,7 +299,6 @@ create a build directory and generate the make files.
     cmake -DCMAKE_BUILD_TYPE=Debug \
           -DVULKAN_HEADERS_INSTALL_DIR=absolute_path_to_install_dir \
           -DVULKAN_LOADER_INSTALL_DIR=absolute_path_to_install_dir \
-          -DGLSLANG_INSTALL_DIR=absolute_path_to_install_dir \
           -DCMAKE_INSTALL_PREFIX=install ..
 
 > Note: The `..` parameter tells `cmake` the location of the top of the
@@ -317,15 +321,8 @@ install directory must be provided. This can be done by setting the
 either case, the variable should point to the installation directory of a
 Vulkan-Headers repository built with the install target.
 
-When generating the project files, the absolute path to a glslang install
-directory must be provided. This can be done by setting the
-`GLSLANG_INSTALL_DIR` environment variable or by setting the
-`GLSLANG_INSTALL_DIR` CMake variable with the `-D` CMake option. In either
-case, the variable should point to the installation directory of a glslang
-repository built with the install target.
-
-Note that if you don't want to use specific revisions of HEADERS, LOADER, 
-and GLSLANG, the update_deps.py script mentioned above will handle all 
+Note that if you don't want to use specific revisions of HEADERS or LOADER,
+the update_deps.py script mentioned above will handle all
 of the dependencies for you.
 
 #### Build the Project
@@ -356,22 +353,21 @@ CMake option of the form `BUILD_WSI_xxx_SUPPORT` can be set to `OFF`.
 
 ## Building On Android
 
-Install the required tools for Linux and Windows covered above, then add the
-following.
+Install the required tools for Linux/Mac OS/Windows covered above, plus the
+following instructions
 
-- Build shaderc source code inside NDK
-```java
-$ cd ${ndk_root}/sources/third_party/shaderc
-$ ../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=c++_static APP_ABI=all NDK_TOOLCHAIN_VERSION:=clang libshaderc_combined -j16
-```
 - Generate Android Studio Projects
-```java
-$ cd YOUR_DEV_DIRECTORY/VulkanSamples/API-Samples
-$ cmake -DANDROID=ON -DABI_NAME=<armabi-v7a|arm64-v8a|...>
 ```
-- Import VulkanSamples/API-Samples/android/build.gradle into Android Studio 2.3.0+.
-- Or if building from a terminal:
-```java
-$ cd android
-$ ./gradlew build
+    $ cd YOUR_DEV_DIRECTORY/VulkanSamples/API-Samples
+    $ cmake -DANDROID=ON -DABI_NAME=<armeabi-v7a|arm64-v8a|...>
+```
+- Precompile Shaders
+```
+     $ cd android
+     $ python3 ./compile_shaders.py
+```
+- Import VulkanSamples/API-Samples/android/build.gradle into Android Studio 3.6.0+.
+- If building from a terminal, do:
+```
+    $ ./gradlew build
 ```

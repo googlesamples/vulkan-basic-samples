@@ -1,4 +1,18 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.10.2)
+
+macro(glsl_to_spirv src basename)
+    add_custom_command(OUTPUT ${src}.h
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${basename}/${src} ${CMAKE_CURRENT_BINARY_DIR}/${src}.h ${GLSLANG_VALIDATOR} false
+        DEPENDS ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${basename}/${src} ${GLSLANG_VALIDATOR}
+        )
+endmacro()
+
+macro(assembly_to_spirv src basename)
+    add_custom_command(OUTPUT ${src}.h
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${basename}/${src} ${CMAKE_CURRENT_BINARY_DIR}/${src}.h ${SPIRV_TOOLS_ASSEMBLER} true
+        DEPENDS ${CMAKE_SOURCE_DIR}/scripts/generate_spirv.py ${CMAKE_CURRENT_SOURCE_DIR}/${basename}/${src} ${SPIRV_TOOLS_ASSEMBLER}
+        )
+endmacro()
 
 # If ANDROID is ON, turn on cross-compiling for it
 if(ANDROID)
@@ -27,12 +41,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             message( FATAL_ERROR "Selected Wayland for samples build but not building Wayland support" )
         endif()
         add_definitions(-DVK_USE_PLATFORM_WAYLAND_KHR)
-    elseif (SAMPLES_WSI_SELECTION STREQUAL "MIR")
-        if (NOT BUILD_WSI_MIR_SUPPORT)
-            message( FATAL_ERROR "Selected MIR for samples build but not building Mir support" )
-        endif()
-        add_definitions(-DVK_USE_PLATFORM_MIR_KHR)
-        include_directories(${MIR_INCLUDE_DIR})
     endif()
 else()
     message(FATAL_ERROR "Unsupported Platform!")
@@ -40,50 +48,10 @@ endif()
 
 set(SAMPLES_DATA_DIR ${SAMPLES_DATA_DIR} "${CMAKE_SOURCE_DIR}/API-Samples/data")
 set(SHADER_FILES ${SHADER_FILES} "")
-include_directories( ${SAMPLES_DATA_DIR} ${GLSLANG_SPIRV_INCLUDE_DIR} ${GLMINC_PREFIX} ${Vulkan_INCLUDE_DIR})
+include_directories( ${SAMPLES_DATA_DIR} ${GLMINC_PREFIX} ${Vulkan_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 # Additional includes for spirv-tools
 include_directories(${SPIRV_TOOLS_INCLUDE_DIR})
-
-# function to build a single-source-file sample that uses glsl shaders;
-#   - assumes SAMPLE_GLSL_VERT_SHADERS and SAMPLE_GLSL_FRAG_SHADERS is set to
-#     the list of shader files of that type, with .vert and .frag omitted
-#   - uses glslangValidator to convert glsl to spirv
-function(sampleExtGLSLShaders SNAME)
-    set(SAMPLE_NAME ${SNAME})
-    set(SHADER_DIR ${SAMPLES_DATA_DIR}/${VULKAN_VERSION})
-    foreach(SFILE ${SAMPLE_GLSL_VERT_SHADERS})
-        add_custom_command(OUTPUT ${SHADER_DIR}/${SFILE}-vert.spv
-            COMMAND ${GLSLANG_VALIDATOR} -s -V ${SHADER_DIR}/${SFILE}.vert
-            COMMAND ${MOVE_CMD} vert.spv ${SHADER_DIR}/${SFILE}-vert.spv
-            DEPENDS ${SHADER_DIR}/${SFILE}.vert ${GLSLANG_VALIDATOR}
-        )
-        set(SHADER_FILES ${SHADER_FILES} ${SHADER_DIR}/${SFILE}-vert.spv)
-    endforeach(SFILE)
-    foreach(SFILE ${SAMPLE_GLSL_FRAG_SHADERS})
-        add_custom_command(OUTPUT ${SHADER_DIR}/${SFILE}-frag.spv
-            COMMAND ${GLSLANG_VALIDATOR} -s -V ${SHADER_DIR}/${SFILE}.frag
-            COMMAND ${MOVE_CMD} frag.spv ${SHADER_DIR}/${SFILE}-frag.spv
-            DEPENDS ${SHADER_DIR}/${SFILE}.frag ${GLSLANG_VALIDATOR}
-        )
-        set(SHADER_FILES ${SHADER_FILES} ${SHADER_DIR}/${SFILE}-frag.spv)
-    endforeach(SFILE)
-    add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp ${SHADER_FILES})
-    target_link_libraries(${SAMPLE_NAME} ${VULKAN_LOADER} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${PTHREAD})
-endfunction(sampleExtGLSLShaders)
-
-# function to build a single-source-file sample that uses spirv shaders
-#   - assumes SAMPLE_SPIRV_SHADERS is set to list to list of spirv shsders
-#     used by the sample, with the .spv omitted
-function(sampleExtSPIRVShaders SNAME)
-    set(SAMPLE_NAME ${SNAME})
-    set(SHADER_DIR ${SAMPLES_DATA_DIR}/${VULKAN_VERSION})
-    foreach(SFILE ${SAMPLE_SPIRV_SHADERS})
-        set(SHADER_FILES ${SHADER_FILES} ${SHADER_DIR}/${SFILE}.spv)
-    endforeach(SFILE)
-    add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp ${SHADER_FILES})
-    target_link_libraries(${SAMPLE_NAME} ${VULKAN_LOADER} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${PTHREAD})
-endfunction(sampleExtSPIRVShaders)
 
 # function to build a simple single-source-file sample
 #   - assumes S_TARGETS set to list of build targets
@@ -107,13 +75,9 @@ function(sampleWithSingleFile)
             set (OTHER_FLAGS "")
             set (ASSET_DIR "")
             set (EXTRA_PERMISSIONS "")
-            set (SHADERC_LINKAGE "")
             set (VALIDATIONLAYER_PACKING "")
 
             # Add extra setting for some samples.
-            # shaderc usage.
-            set (SHADERC_LINKAGE "library \"shaderc\"         linkage \"static\"")
-
             # Include resource files.
             set (SAMPLE_WITH_RESOURCES
              draw_textured_cube init_texture immutable_sampler memory_barriers multiple_sets pipeline_cache
@@ -132,7 +96,9 @@ function(sampleWithSingleFile)
             # Add validation layer settings.
             set (SAMPLE_WITH_TOOLS create_debug_report_callback enable_validation_with_callback)
             if (";${SAMPLE_WITH_TOOLS};" MATCHES ";${SAMPLE_NAME};")
-                set (VALIDATIONLAYER_PACKING "sourceSets.main.jniLibs.srcDirs file(ndkDir).absolutePath +\n\t\t\t\t'/sources/third_party/vulkan/src/build-android/jniLibs'")
+		    set (VALIDATIONLAYER_PACKING "sourceSets.main.jniLibs.srcDirs ")
+		    string(APPEND VALIDATIONLAYER_PACKING "file(android.ndkDirectory.path).absolutePath +\n")
+		    string(APPEND VALIDATIONLAYER_PACKING "\t\t\t\t'/sources/third_party/vulkan/src/build-android/jniLibs'")
             endif()
 
             # Cook template files.
@@ -147,11 +113,77 @@ function(sampleWithSingleFile)
             endforeach(TEMPLATE_FILE)
             SET(SETTINGS_GRADLE "${SETTINGS_GRADLE}include ':${SAMPLE_NAME}'\n")
         elseif(UNIX)
-            add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
-            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${XCB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD} ${SPIRV_TOOLS_LIBRARIES})
+            if (${SAMPLE_NAME} MATCHES spirv_assembly)
+                assembly_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                assembly_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                set (sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+            elseif (${SAMPLE_NAME} MATCHES spirv_specialization)
+                set (sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                glsl_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                glsl_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+                assembly_to_spirv(specialized.frag ${SAMPLE_NAME})
+                set (sources ${sources} specialized.frag.h)
+            else()
+                set(sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.vert)
+                    glsl_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.full.vert)
+                    glsl_to_spirv(${SAMPLE_NAME}.full.vert ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.full.vert.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.frag)
+                    glsl_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}2.frag)
+                    glsl_to_spirv(${SAMPLE_NAME}2.frag ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}2.frag.h)
+                endif()
+            endif()
+            add_executable(${SAMPLE_NAME} ${sources})
+            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${XCB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD})
         else()
-            add_executable(${SAMPLE_NAME} WIN32 ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
-            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${GLSLANG_LIBRARIES} ${VULKAN_LOADER} ${WINLIBS} ${SPIRV_TOOLS_LIBRARIES})
+            if (${SAMPLE_NAME} MATCHES spirv_assembly)
+                assembly_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                assembly_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                set (sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+            elseif (${SAMPLE_NAME} MATCHES spirv_specialization)
+                set (sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                glsl_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                glsl_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+                assembly_to_spirv(specialized.frag ${SAMPLE_NAME})
+                set (sources ${sources} specialized.frag.h)
+            else()
+                set(sources ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.vert)
+                    glsl_to_spirv(${SAMPLE_NAME}.vert ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.vert.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.full.vert)
+                    glsl_to_spirv(${SAMPLE_NAME}.full.vert ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.full.vert.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.frag)
+                    glsl_to_spirv(${SAMPLE_NAME}.frag ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}.frag.h)
+                endif()
+                if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}2.frag)
+                    glsl_to_spirv(${SAMPLE_NAME}2.frag ${SAMPLE_NAME})
+                    set (sources ${sources} ${SAMPLE_NAME}2.frag.h)
+                endif()
+            endif()
+            add_executable(${SAMPLE_NAME} WIN32 ${sources})
+            target_link_libraries(${SAMPLE_NAME} ${UTILS_NAME} ${VULKAN_LOADER} ${WINLIBS})
         endif()
     endforeach(TARG)
 
@@ -160,22 +192,6 @@ function(sampleWithSingleFile)
         configure_file(android/settings.gradle.in android/settings.gradle @ONLY)
     endif()
 endfunction(sampleWithSingleFile)
-
-# function to build a simple single-source-file sample
-#   - assumes that code is standalone and doesn't depend on utilitites
-#   - assumes S_TARGETS set to list of build targets
-function(sampleInlineGLSLShaders)
-    foreach(TARG ${S_TARGETS})
-        set(SAMPLE_NAME ${TARG})
-        if(UNIX)
-            add_executable(${SAMPLE_NAME} ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
-            target_link_libraries(${SAMPLE_NAME} ${GLSLANG_LIBRARIES} ${XCB_LIBRARIES} ${VULKAN_LOADER} ${PTHREAD})
-        else()
-            add_executable(${SAMPLE_NAME} WIN32 ${SAMPLE_NAME}/${SAMPLE_NAME}.cpp)
-            target_link_libraries(${SAMPLE_NAME} ${GLSLANG_LIBRARIES} ${VULKAN_LOADER} ${WINLIBS})
-        endif()
-    endforeach(TARG)
-endfunction(sampleInlineGLSLShaders)
 
 if(WIN32)
     set (MOVE_CMD "move")
@@ -229,6 +245,7 @@ if (NOT WIN32)
     if (NOT (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR))
         add_custom_target(samples-binary-dir-symlinks ALL
             COMMAND ln -sf ${CMAKE_CURRENT_SOURCE_DIR}/run_all_samples.sh
+            COMMAND ln -sf ${CMAKE_CURRENT_SOURCE_DIR}/run_all_samples.py
             COMMAND ln -sf ${CMAKE_CURRENT_SOURCE_DIR}/get-short-descripts.sh
             VERBATIM
             )
@@ -236,9 +253,9 @@ if (NOT WIN32)
 else()
     if (NOT (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR))
         FILE(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lunarg.ppm LUNARG)
-        FILE(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/run_all_samples.ps1 RUN_ALL)
+        FILE(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/run_all_samples.py RUN_ALL)
         add_custom_target(samples-binary-dir-symlinks ALL
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${RUN_ALL} run_all_samples.ps1
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${RUN_ALL} run_all_samples.py
             VERBATIM
             )
     endif()
@@ -267,7 +284,7 @@ set (S_TARGETS
     copy_blit_image template separate_image_sampler input_attachment
     occlusion_query pipeline_cache pipeline_derivative push_descriptors
     immutable_sampler push_constants draw_subpasses secondary_command_buffer
-    spirv_assembly spirv_specialization memory_barriers validation_cache vulkan_1_1_flexible)
+    memory_barriers spirv_assembly spirv_specialization validation_cache vulkan_1_1_flexible)
 sampleWithSingleFile()
 
 if (NOT ANDROID)
@@ -277,16 +294,3 @@ endforeach(sample)
 
     add_subdirectory(utils)
 endif()
-
-# targets that use spv shaders
-
-# usespirvshader
-# set(SAMPLE_SPIRV_SHADERS spirvshader-vert spirvshader-frag)
-# sampleExtSPIRVShaders()
-
-# targets that require glsl to spv shader conversion
-
-# useglslshader
-# set(SAMPLE_GLSL_FRAG_SHADERS glslshader)
-# set(SAMPLE_GLSL_VERT_SHADERS glslshader)
-# sampleExtGLSLShaders()
